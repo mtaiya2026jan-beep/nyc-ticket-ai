@@ -18,6 +18,7 @@ type ViolationResult = {
     upheldRate: number | null
     totalHistoricalCases: number
     caseJudgment: string
+    description: string
     strategies: string[]
     risks: { level: string; text: string }[]
     estimatedSaving: string
@@ -30,6 +31,7 @@ type ScanResult = {
   summons_number: string
   hearing_date: string | null
   business_name: string | null
+  place_of_occurrence: string | null
   violations: { line_item: number; violation_code: string; law_violated: string; description: string }[]
   confidence: number
 }
@@ -136,7 +138,7 @@ export default function Home() {
           if (r.business_name?.confidence != null) setFieldConfidence(p => ({...p, businessName: r.business_name.confidence}))
         }
         if (r.place_of_occurrence) {
-          setPlaceOfOccurrence(r.place_of_occurrence?.value ?? r.place_of_occurrence)
+          setPlaceOfOccurrence(r.place_of_occurrence)
           if (r.place_of_occurrence?.confidence != null) setFieldConfidence(p => ({...p, placeOfOccurrence: r.place_of_occurrence.confidence}))
         }
       if (r.agency) setAgency(r.agency)
@@ -163,10 +165,10 @@ export default function Home() {
       if (r.agency) setAgency(r.agency.includes('-') ? r.agency.split('-')[0].trim() : r.agency.trim())
       if (r.summons_number) setSummons(r.summons_number)
         if (r.business_name) setBusinessName(r.business_name)
-        if (r.place_of_occurrence) setPlaceOfOccurrence(r.place_of_occurrence?.value ?? r.place_of_occurrence)
+        if (r.place_of_occurrence) setPlaceOfOccurrence(r.place_of_occurrence)
       if (r.hearing_date) {
         // convert to YYYY-MM-DD for input storage
-        setHearingDate(toInputDate(r.hearing_date?.value ?? r.hearing_date))
+        setHearingDate(toInputDate(r.hearing_date))
       }
       if (r.violations?.length > 0) {
         setCode(r.violations[0].violation_code)
@@ -779,7 +781,7 @@ export default function Home() {
                   </div>
                   <div style={{padding:18}}>
                     {multiResults[activeTab] && (
-                      <ResultCard r={multiResults[activeTab].analysis} vc={multiResults[activeTab].violation_code} isDb={multiResults[activeTab].hasDbData} desc={multiResults[activeTab].description} />
+                      <ResultCard r={multiResults[activeTab].analysis} vc={multiResults[activeTab].violation_code} isDb={multiResults[activeTab].hasDbData} desc={multiResults[activeTab].analysis?.violationTitleCN} />
                     )}
                   </div>
                   {(() => {
