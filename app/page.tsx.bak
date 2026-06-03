@@ -1,0 +1,403 @@
+'use client'
+import { useState } from 'react'
+
+type AnalysisResult = {
+  violationTitle: string
+  violationTitleCN: string
+  severity: string
+  baseFineRange: string
+  avgFinalPenalty: number | null
+  dismissRate: number | null
+  reducedRate: number | null
+  upheldRate: number | null
+  totalHistoricalCases: number
+  caseJudgment: string
+  strategies: string[]
+  risks: { level: string; text: string }[]
+  estimatedSaving: string
+  urgentActions: string
+}
+
+const QUICK_CASES = [
+  { agency: 'DOHMH', code: '02A', desc: '食品温度不合格', sev: 'Critical' },
+  { agency: 'DOHMH', code: '04M', desc: '发现鼠患迹象', sev: 'Critical' },
+  { agency: 'DOHMH', code: '10B', desc: '设备清洁不合格', sev: 'Major' },
+  { agency: 'DOB', code: '28-06', desc: '建筑无证施工', sev: 'Critical' },
+]
+
+export default function Home() {
+  const [tab, setTab] = useState<'analyze'|'dashboard'|'pricing'>('analyze')
+  const [agency, setAgency] = useState('')
+  const [code, setCode] = useState('')
+  const [summons, setSummons] = useState('')
+  const [hearingDate, setHearingDate] = useState('')
+  const [description, setDescription] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [loadStep, setLoadStep] = useState(0)
+  const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [hasDbData, setHasDbData] = useState(false)
+  const [error, setError] = useState('')
+  const [modalContent, setModalContent] = useState('')
+  const [modalTitle, setModalTitle] = useState('')
+  const [modalLoading, setModalLoading] = useState(false)
+  const [showModal, setShowModal] = useState(false)
+
+  const loadQuickCase = (a: string, c: string) => {
+    setAgency(a); setCode(c)
+    setSummons(String(Math.floor(Math.random()*900000000+100000000)))
+    setTimeout(() => runAnalysis(a, c), 100)
+  }
+
+  const runAnalysis = async (overrideAgency?: string, overrideCode?: string) => {
+    const ag = overrideAgency || agency
+    const vc = overrideCode || code
+    if (!ag || !vc) { setError('请填写机构和违规代码'); return }
+    setLoading(true); setResult(null); setError(''); setLoadStep(1)
+    ;[1,2,3,4].forEach((s,i) => setTimeout(() => setLoadStep(s+1), (i+1)*450))
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agency: ag, violationCode: vc, summonsNumber: summons, hearingDate, description }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) { setError(data.error || '分析失败，请重试'); return }
+      setResult(data.analysis); setHasDbData(data.hasDbData)
+    } catch { setError('网络错误，请重试') }
+    finally { setLoading(false); setLoadStep(0) }
+  }
+
+  const runMode = async (mode: string) => {
+    if (!result) return
+    const titles: Record<string,string> = { appeal:'申诉材料', evidence:'证据清单', plan:'整改计划' }
+    setModalTitle(titles[mode]); setModalContent(''); setModalLoading(true); setShowModal(true)
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agency, violationCode: code, mode }),
+      })
+      const data = await res.json()
+      setModalContent(data.content || data.error || '生成失败')
+    } catch { setModalContent('网络错误，请重试') }
+    finally { setModalLoading(false) }
+  }
+
+  const sevColor = (s: string) => s==='Critical'?'var(--red)':s==='Major'?'var(--amber)':'var(--green)'
+  const riskIcon = (l: string) => l==='danger'?'alert-circle':l==='warning'?'alert-triangle':'circle-check'
+  const riskColor = (l: string) => l==='danger'?'var(--red)':l==='warning'?'var(--amber)':'var(--green)'
+
+  return (
+    <div style={{display:'flex', height:'100vh', overflow:'hidden'}}>
+
+      {/* Modal */}
+      {showModal && (
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:24}}>
+          <div style={{background:'var(--bg2)', border:'1px solid var(--border2)', borderRadius:16, width:'100%', maxWidth:700, maxHeight:'80vh', display:'flex', flexDirection:'column'}}>
+            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid var(--border)'}}>
+              <div style={{fontFamily:'Syne', fontWeight:700, fontSize:16, color:'var(--accent)'}}>{modalTitle}</div>
+              <button onClick={()=>setShowModal(false)} style={{background:'none', border:'none', color:'var(--text2)', cursor:'pointer', fontSize:20}}>✕</button>
+            </div>
+            <div style={{flex:1, overflowY:'auto', padding:20}}>
+              {modalLoading
+                ? <div style={{display:'flex', alignItems:'center', gap:12, color:'var(--text3)', padding:40, justifyContent:'center'}}><div className="spinner" style={{width:24,height:24}} /> AI 生成中...</div>
+                : <pre style={{whiteSpace:'pre-wrap', fontSize:13, color:'var(--text)', lineHeight:1.8, fontFamily:'Inter'}}>{modalContent}</pre>
+              }
+            </div>
+            <div style={{padding:'12px 20px', borderTop:'1px solid var(--border)', display:'flex', justifyContent:'flex-end', gap:10}}>
+              <button onClick={()=>{navigator.clipboard.writeText(modalContent)}} style={{padding:'8px 16px', borderRadius:8, border:'1px solid var(--border2)', background:'var(--bg3)', color:'var(--text)', fontSize:12, cursor:'pointer'}}>复制内容</button>
+              <button onClick={()=>setShowModal(false)} style={{padding:'8px 16px', borderRadius:8, border:'none', background:'var(--accent)', color:'#000', fontSize:12, cursor:'pointer', fontWeight:600}}>关闭</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SIDEBAR */}
+      <div style={{width:220, minWidth:220, background:'var(--bg2)', borderRight:'1px solid var(--border)', display:'flex', flexDirection:'column', padding:'20px 0'}}>
+        <div style={{padding:'0 20px 20px', borderBottom:'1px solid var(--border)', marginBottom:16}}>
+          <div style={{fontFamily:'Syne', fontWeight:800, fontSize:15, color:'var(--accent)'}}>NYC Ticket AI</div>
+          <div style={{fontFamily:'DM Mono', fontSize:9, color:'var(--text3)', letterSpacing:'0.12em', textTransform:'uppercase', marginTop:3}}>POWERED BY SOPHIA OS</div>
+        </div>
+        <div style={{padding:'0 12px', marginBottom:20}}>
+          <div style={{fontFamily:'DM Mono', fontSize:9, color:'var(--text3)', letterSpacing:'0.1em', textTransform:'uppercase', padding:'0 8px', marginBottom:6}}>主功能</div>
+          {[{icon:'search',label:'罚单智能分析',t:'analyze',badge:'LIVE'},{icon:'chart-bar',label:'数据看板',t:'dashboard'},{icon:'tag',label:'定价方案',t:'pricing',badge:'NEW'}].map(n=>(
+            <div key={n.t} onClick={()=>setTab(n.t as any)} style={{display:'flex', alignItems:'center', gap:9, padding:'8px 10px', borderRadius:8, cursor:'pointer', fontSize:13, marginBottom:2, color:tab===n.t?'var(--accent)':'var(--text2)', background:tab===n.t?'rgba(232,255,71,0.08)':'transparent', border:tab===n.t?'1px solid rgba(232,255,71,0.2)':'1px solid transparent'}}>
+              <i className={`ti ti-${n.icon}`} style={{fontSize:15}} aria-hidden />
+              <span style={{flex:1}}>{n.label}</span>
+              {n.badge && <span style={{background:n.badge==='LIVE'?'var(--green)':'var(--accent)', color:'#000', fontSize:9, fontWeight:700, padding:'1px 6px', borderRadius:20}}>{n.badge}</span>}
+            </div>
+          ))}
+        </div>
+        <div style={{padding:'0 12px', marginBottom:20}}>
+          <div style={{fontFamily:'DM Mono', fontSize:9, color:'var(--text3)', letterSpacing:'0.1em', textTransform:'uppercase', padding:'0 8px', marginBottom:6}}>业务类型</div>
+          {[{icon:'tools-kitchen-2',label:'餐饮卫生 DOHMH',ag:'DOHMH'},{icon:'building',label:'建筑违规 DOB',ag:'DOB'},{icon:'trash',label:'卫生清洁 DSNY',ag:'DSNY'},{icon:'receipt',label:'外卖平台合规',ag:'DCA',badge:'Beta'}].map(n=>(
+            <div key={n.ag} onClick={()=>{setAgency(n.ag);setTab('analyze')}} style={{display:'flex', alignItems:'center', gap:9, padding:'8px 10px', borderRadius:8, cursor:'pointer', fontSize:13, marginBottom:2, color:'var(--text2)', border:'1px solid transparent'}}>
+              <i className={`ti ti-${n.icon}`} style={{fontSize:15}} aria-hidden />
+              <span style={{flex:1}}>{n.label}</span>
+              {n.badge && <span style={{background:'var(--amber)', color:'#000', fontSize:9, fontWeight:700, padding:'1px 6px', borderRadius:20}}>{n.badge}</span>}
+            </div>
+          ))}
+        </div>
+        <div style={{marginTop:'auto', padding:16, borderTop:'1px solid var(--border)'}}>
+          <div style={{background:'rgba(232,255,71,0.08)', border:'1px solid rgba(232,255,71,0.2)', borderRadius:8, padding:'8px 10px'}}>
+            <div style={{color:'var(--accent)', fontWeight:500, fontSize:11}}>⚡ 专业版 Pro</div>
+            <div style={{color:'var(--text3)', fontSize:10, marginTop:2}}>$99/月 · 无限分析次数</div>
+          </div>
+        </div>
+      </div>
+
+      {/* MAIN */}
+      <div style={{flex:1, display:'flex', flexDirection:'column', overflow:'hidden'}}>
+        {/* Topbar */}
+        <div style={{height:56, minHeight:56, background:'var(--bg2)', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', padding:'0 24px', gap:16}}>
+          <div style={{fontFamily:'Syne', fontWeight:700, fontSize:15}}>{tab==='analyze'?'罚单分析工作台':tab==='dashboard'?'数据看板':'定价方案'}</div>
+          <div style={{fontFamily:'DM Mono', fontSize:9, padding:'3px 8px', borderRadius:4, background:'rgba(71,255,154,0.1)', color:'var(--green)', border:'1px solid rgba(71,255,154,0.2)'}}>V1.8 LIVE</div>
+          <div style={{marginLeft:'auto', display:'flex', gap:12}}>
+            <div style={{display:'flex', alignItems:'center', gap:6, background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:6, padding:'5px 10px', fontSize:11, color:'var(--text2)'}}>
+              <i className="ti ti-database" style={{fontSize:13}} aria-hidden /> 数据库 <span style={{color:'var(--text)', fontWeight:500}}>79,959 条</span>
+            </div>
+            <div style={{display:'flex', alignItems:'center', gap:6, background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:6, padding:'5px 10px', fontSize:11}}>
+              <i className="ti ti-activity" style={{fontSize:13, color:'var(--green)'}} aria-hidden /><span style={{color:'var(--green)', fontWeight:500}}>系统正常</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ANALYZE TAB */}
+        {tab==='analyze' && (
+          <div style={{flex:1, overflow:'hidden', display:'flex', gap:20, padding:24}}>
+            {/* Left */}
+            <div style={{width:340, minWidth:340, display:'flex', flexDirection:'column', gap:16, overflowY:'auto'}}>
+              <div style={{background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12, padding:18}}>
+                <div style={{fontFamily:'DM Mono', fontSize:10, color:'var(--text3)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:14, display:'flex', alignItems:'center', gap:8}}>
+                  <i className="ti ti-file-text" aria-hidden /> 输入罚单信息
+                </div>
+                <div style={{marginBottom:14}}>
+                  <label style={{fontSize:11, color:'var(--text3)', marginBottom:6, display:'block', textTransform:'uppercase', letterSpacing:'0.06em'}}>执法机构 Agency</label>
+                  <select value={agency} onChange={e=>setAgency(e.target.value)} style={{width:'100%', background:'var(--bg3)', border:'1px solid var(--border2)', borderRadius:8, color:'var(--text)', fontSize:13, padding:'9px 12px', outline:'none', appearance:'none'}}>
+                    <option value="">— 选择机构 —</option>
+                    <option value="DOHMH">DOHMH — 餐馆卫生检查</option>
+                    <option value="DOB">DOB — 建筑违规</option>
+                    <option value="DSNY">DSNY — 卫生清洁</option>
+                    <option value="DCA">DCA — 商业许可</option>
+                    <option value="ECB">ECB — 环境控制</option>
+                  </select>
+                </div>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14}}>
+                  <div>
+                    <label style={{fontSize:11, color:'var(--text3)', marginBottom:6, display:'block', textTransform:'uppercase', letterSpacing:'0.06em'}}>违规代码</label>
+                    <input value={code} onChange={e=>setCode(e.target.value)} placeholder="如 02A" style={{width:'100%', background:'var(--bg3)', border:'1px solid var(--border2)', borderRadius:8, color:'var(--text)', fontSize:13, padding:'9px 12px', outline:'none'}} />
+                  </div>
+                  <div>
+                    <label style={{fontSize:11, color:'var(--text3)', marginBottom:6, display:'block', textTransform:'uppercase', letterSpacing:'0.06em'}}>传票号码</label>
+                    <input value={summons} onChange={e=>setSummons(e.target.value)} placeholder="如 123456789" style={{width:'100%', background:'var(--bg3)', border:'1px solid var(--border2)', borderRadius:8, color:'var(--text)', fontSize:13, padding:'9px 12px', outline:'none'}} />
+                  </div>
+                </div>
+                <div style={{marginBottom:14}}>
+                  <label style={{fontSize:11, color:'var(--text3)', marginBottom:6, display:'block', textTransform:'uppercase', letterSpacing:'0.06em'}}>听证日期（选填）</label>
+                  <input type="date" value={hearingDate} onChange={e=>setHearingDate(e.target.value)} style={{width:'100%', background:'var(--bg3)', border:'1px solid var(--border2)', borderRadius:8, color:'var(--text)', fontSize:13, padding:'9px 12px', outline:'none', colorScheme:'dark'}} />
+                </div>
+                <div style={{marginBottom:16}}>
+                  <label style={{fontSize:11, color:'var(--text3)', marginBottom:6, display:'block', textTransform:'uppercase', letterSpacing:'0.06em'}}>补充描述（选填）</label>
+                  <textarea value={description} onChange={e=>setDescription(e.target.value)} placeholder="可描述现场情况、整改措施等..." rows={3} style={{width:'100%', background:'var(--bg3)', border:'1px solid var(--border2)', borderRadius:8, color:'var(--text)', fontSize:13, padding:'9px 12px', outline:'none', resize:'vertical', lineHeight:1.5}} />
+                </div>
+                {error && <div style={{fontSize:12, color:'var(--red)', marginBottom:12, padding:'8px 12px', background:'rgba(255,92,92,0.1)', borderRadius:8}}>{error}</div>}
+                <button onClick={()=>runAnalysis()} disabled={loading} style={{width:'100%', background:loading?'rgba(232,255,71,0.2)':'var(--accent)', color:loading?'var(--accent)':'#0a0a0f', border:'none', borderRadius:8, padding:'12px', fontFamily:'Syne', fontWeight:700, fontSize:14, cursor:loading?'not-allowed':'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8}}>
+                  {loading ? <><div className="spinner" style={{width:16,height:16}} /> 分析中...</> : <><i className="ti ti-sparkles" aria-hidden /> AI 智能分析</>}
+                </button>
+              </div>
+              <div style={{background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12, padding:18}}>
+                <div style={{fontFamily:'DM Mono', fontSize:10, color:'var(--text3)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:14, display:'flex', alignItems:'center', gap:8}}>
+                  <i className="ti ti-bolt" aria-hidden /> 快速测试案例
+                </div>
+                <div style={{display:'flex', flexDirection:'column', gap:8}}>
+                  {QUICK_CASES.map(qc=>(
+                    <div key={qc.code} onClick={()=>loadQuickCase(qc.agency, qc.code)} style={{display:'flex', alignItems:'center', gap:10, padding:'9px 12px', background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:8, cursor:'pointer'}}>
+                      <span style={{fontFamily:'DM Mono', fontSize:11, color:'var(--accent)', background:'rgba(232,255,71,0.08)', padding:'2px 7px', borderRadius:4, minWidth:80}}>{qc.agency} {qc.code}</span>
+                      <span style={{fontSize:11, color:'var(--text2)', flex:1}}>{qc.desc}</span>
+                      <span style={{fontSize:9, padding:'2px 6px', borderRadius:4, background:qc.sev==='Critical'?'rgba(255,92,92,0.15)':'rgba(255,179,71,0.15)', color:qc.sev==='Critical'?'var(--red)':'var(--amber)'}}>{qc.sev}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Right */}
+            <div style={{flex:1, overflowY:'auto', display:'flex', flexDirection:'column', gap:16}}>
+              {loading && (
+                <div style={{background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12, padding:18, flex:1, display:'flex', alignItems:'center', justifyContent:'center'}}>
+                  <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:16, padding:40}}>
+                    <div className="spinner" style={{width:36,height:36}} />
+                    <div style={{fontFamily:'DM Mono', fontSize:12, color:'var(--text3)'}}>AI 正在分析...</div>
+                    <div style={{display:'flex', flexDirection:'column', gap:6}}>
+                      {['识别机构与违规代码','查询 Supabase 数据库','统计历史听证案例','GPT-4o 生成分析报告'].map((s,i)=>(
+                        <div key={i} style={{fontSize:11, display:'flex', alignItems:'center', gap:7, color:loadStep>i+1?'var(--green)':loadStep===i+1?'var(--accent)':'var(--text3)'}}>
+                          <i className={`ti ti-${loadStep>i+1?'check':loadStep===i+1?'loader':'circle'}`} style={{fontSize:12}} aria-hidden /> {s}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {!loading && !result && (
+                <div style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'var(--text3)', padding:40, textAlign:'center'}}>
+                  <i className="ti ti-file-search" style={{fontSize:48, opacity:0.3, marginBottom:16}} aria-hidden />
+                  <div style={{fontFamily:'Syne', fontWeight:600, fontSize:16, color:'var(--text2)', marginBottom:8}}>等待分析</div>
+                  <div style={{fontSize:13, lineHeight:1.7, maxWidth:280}}>输入罚单信息或点击左侧快速案例，AI 将在数秒内完成深度分析</div>
+                </div>
+              )}
+              {!loading && result && (
+                <div style={{background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:12, padding:18}}>
+                  {/* Header */}
+                  <div style={{display:'flex', alignItems:'center', gap:12, paddingBottom:14, borderBottom:'1px solid var(--border)', marginBottom:16, flexWrap:'wrap'}}>
+                    <span style={{fontFamily:'DM Mono', fontSize:11, background:'rgba(110,181,255,0.1)', color:'var(--blue)', border:'1px solid rgba(110,181,255,0.25)', padding:'3px 10px', borderRadius:4}}>{agency}</span>
+                    <span style={{fontFamily:'Syne', fontWeight:800, fontSize:22}}>{code}</span>
+                    <span style={{fontSize:13, color:'var(--text2)', flex:1}}>{result.violationTitle}</span>
+                    <span style={{fontSize:10, padding:'4px 10px', borderRadius:20, fontFamily:'DM Mono', background:`${sevColor(result.severity)}22`, color:sevColor(result.severity), border:`1px solid ${sevColor(result.severity)}44`}}>{result.severity}</span>
+                    {hasDbData && <span style={{fontSize:9, padding:'3px 8px', borderRadius:4, background:'rgba(71,255,154,0.1)', color:'var(--green)', border:'1px solid rgba(71,255,154,0.2)', fontFamily:'DM Mono'}}>真实数据</span>}
+                  </div>
+                  {/* Judgment */}
+                  <div style={{marginBottom:16, padding:'12px 14px', background:'rgba(232,255,71,0.04)', border:'1px solid rgba(232,255,71,0.12)', borderRadius:8, fontSize:13, color:'var(--text)', lineHeight:1.7}}>
+                    <span style={{fontFamily:'DM Mono', fontSize:10, color:'var(--accent)', marginRight:8}}>▸ 案件判断</span>{result.caseJudgment}
+                  </div>
+                  {/* Metrics */}
+                  <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:16}}>
+                    {[
+                      {label:'基础罚款区间', value:result.baseFineRange, sub:'官方标准', color:'var(--amber)'},
+                      {label:'历史平均罚款', value:result.avgFinalPenalty?`$${result.avgFinalPenalty}`:'—', sub:`${result.totalHistoricalCases} 历史案例`, color:'var(--green)'},
+                      {label:'撤销率', value:result.dismissRate!==null?`${result.dismissRate}%`:'—', sub:'完全免除'},
+                      {label:'减免率', value:result.reducedRate!==null?`${result.reducedRate}%`:'—', sub:'部分减免'},
+                    ].map(m=>(
+                      <div key={m.label} style={{background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:8, padding:'12px 14px'}}>
+                        <div style={{fontSize:10, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6}}>{m.label}</div>
+                        <div style={{fontFamily:'Syne', fontWeight:700, fontSize:20, color:m.color||'var(--text)'}}>{m.value}</div>
+                        <div style={{fontSize:10, color:'var(--text3)', marginTop:2}}>{m.sub}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Grid */}
+                  <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16}}>
+                    <div style={{background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:8, padding:14}}>
+                      <div style={{fontFamily:'DM Mono', fontSize:10, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10}}>
+                        <i className="ti ti-chart-pie" style={{color:'var(--blue)', marginRight:6}} aria-hidden />历史听证分布
+                      </div>
+                      {result.dismissRate!==null && (
+                        <>
+                          <div style={{display:'flex', borderRadius:4, overflow:'hidden', height:6, gap:2, marginBottom:8}}>
+                            <div style={{background:'var(--green)', flex:result.dismissRate, borderRadius:3}} />
+                            <div style={{background:'var(--amber)', flex:result.reducedRate||0, borderRadius:3}} />
+                            <div style={{background:'var(--red)', flex:result.upheldRate||0, borderRadius:3}} />
+                          </div>
+                          <div style={{display:'flex', gap:10, flexWrap:'wrap'}}>
+                            {[['var(--green)',`撤销 ${result.dismissRate}%`],['var(--amber)',`减免 ${result.reducedRate}%`],['var(--red)',`维持 ${result.upheldRate}%`]].map(([c,l])=>(
+                              <div key={l as string} style={{display:'flex', alignItems:'center', gap:5, fontSize:10, color:'var(--text2)'}}>
+                                <div style={{width:7,height:7,borderRadius:'50%',background:c as string}} />{l}
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                      <div style={{marginTop:12, paddingTop:10, borderTop:'1px solid var(--border)', fontSize:12, color:'var(--text)', lineHeight:1.6}}>
+                        <span style={{fontFamily:'DM Mono', fontSize:10, color:'var(--amber)', marginRight:6}}>⚡ 立即行动</span>{result.urgentActions}
+                      </div>
+                    </div>
+                    <div style={{background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:8, padding:14}}>
+                      <div style={{fontFamily:'DM Mono', fontSize:10, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:12}}>
+                        <i className="ti ti-coin" style={{color:'var(--amber)', marginRight:6}} aria-hidden />费用预测
+                      </div>
+                      <div style={{display:'flex', flexDirection:'column', gap:12}}>
+                        <div><div style={{fontSize:10, color:'var(--text3)', marginBottom:3}}>原始罚款区间</div><div style={{fontFamily:'Syne', fontWeight:700, fontSize:18, color:'var(--amber)'}}>{result.baseFineRange}</div></div>
+                        <div><div style={{fontSize:10, color:'var(--text3)', marginBottom:3}}>预计可节省</div><div style={{fontFamily:'Syne', fontWeight:700, fontSize:18, color:'var(--green)'}}>{result.estimatedSaving}</div></div>
+                        {result.avgFinalPenalty && <div><div style={{fontSize:10, color:'var(--text3)', marginBottom:3}}>历史最终平均</div><div style={{fontFamily:'Syne', fontWeight:700, fontSize:18, color:'var(--text)'}}>${result.avgFinalPenalty}</div></div>}
+                      </div>
+                    </div>
+                    <div style={{background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:8, padding:14}}>
+                      <div style={{fontFamily:'DM Mono', fontSize:10, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:12}}>
+                        <i className="ti ti-list-check" style={{color:'var(--green)', marginRight:6}} aria-hidden />处理建议
+                      </div>
+                      <div style={{display:'flex', flexDirection:'column', gap:10}}>
+                        {result.strategies.map((s,i)=>(
+                          <div key={i} style={{display:'flex', gap:8, fontSize:12, color:'var(--text)', lineHeight:1.5}}>
+                            <div style={{width:16,height:16,borderRadius:'50%',background:'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'#000',flexShrink:0,marginTop:2}}>{i+1}</div>{s}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:8, padding:14}}>
+                      <div style={{fontFamily:'DM Mono', fontSize:10, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:12}}>
+                        <i className="ti ti-alert-triangle" style={{color:'var(--red)', marginRight:6}} aria-hidden />风险提示
+                      </div>
+                      <div style={{display:'flex', flexDirection:'column', gap:9}}>
+                        {result.risks.map((r,i)=>(
+                          <div key={i} style={{display:'flex', gap:8, fontSize:12, color:'var(--text2)', lineHeight:1.5}}>
+                            <i className={`ti ti-${riskIcon(r.level)}`} style={{color:riskColor(r.level),fontSize:14,marginTop:1,flexShrink:0}} aria-hidden />{r.text}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Action buttons */}
+                  <div style={{display:'flex', gap:10, paddingTop:14, borderTop:'1px solid var(--border)'}}>
+                    {[{icon:'file-text',label:'生成申诉材料',primary:true,mode:'appeal'},{icon:'list',label:'证据清单',mode:'evidence'},{icon:'calendar',label:'整改计划',mode:'plan'}].map(btn=>(
+                      <button key={btn.label} onClick={()=>runMode(btn.mode)} style={{flex:1, padding:'10px', borderRadius:8, border:btn.primary?'1px solid rgba(232,255,71,0.25)':'1px solid var(--border2)', background:btn.primary?'rgba(232,255,71,0.08)':'var(--bg3)', color:btn.primary?'var(--accent)':'var(--text)', fontFamily:'Inter', fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:7}}>
+                        <i className={`ti ti-${btn.icon}`} aria-hidden />{btn.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{marginTop:12, padding:'10px 12px', background:'rgba(255,255,255,0.02)', borderRadius:8, border:'1px solid var(--border)'}}>
+                    <div style={{fontSize:10, color:'var(--text3)', lineHeight:1.7}}>⚠️ 免责声明：本分析基于历史听证案例数据库，仅供参考，不构成法律意见。重大金额或执照风险建议咨询专业律师。</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* PRICING TAB */}
+        {tab==='pricing' && (
+          <div style={{flex:1, overflowY:'auto', padding:24, display:'flex', flexDirection:'column'}}>
+            <div style={{marginBottom:20}}>
+              <div style={{fontFamily:'Syne', fontWeight:700, fontSize:20, marginBottom:6}}>行业收费 1/10 的价格，AI 驱动的专业服务</div>
+              <div style={{fontSize:13, color:'var(--text2)'}}>传统代理公司每张罚单收费 $500–$3,000。我们用 AI 将成本降低 90%，服务不降级。</div>
+            </div>
+            <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16}}>
+              {[
+                {name:'入门版 Starter',price:'$29',per:'/月',vs:'传统代理 $500+/次',features:['每月 10 次罚单分析','DOHMH 全代码覆盖','历史案例参考','处理建议报告','邮件支持']},
+                {name:'专业版 Pro',price:'$99',per:'/月',vs:'传统代理 $1,500+/次',featured:true,features:['无限次罚单分析','DOHMH + DOB + DSNY','完整历史案例库','AI 申诉材料生成','外卖平台合规审核','优先客服响应']},
+                {name:'机构版 Agency',price:'$299',per:'/月',vs:'传统律所 $3,000+/次',features:['Pro 全部功能','多账户团队管理','API 接入','白标定制','专属客户经理','律所 / 协会专项']},
+              ].map(p=>(
+                <div key={p.name} style={{background:p.featured?'rgba(232,255,71,0.04)':'var(--bg3)', border:p.featured?'1px solid rgba(232,255,71,0.35)':'1px solid var(--border)', borderRadius:12, padding:20, position:'relative'}}>
+                  {p.featured && <div style={{position:'absolute', top:-12, left:'50%', transform:'translateX(-50%)', background:'var(--accent)', color:'#000', fontSize:10, fontWeight:700, padding:'3px 12px', borderRadius:20, whiteSpace:'nowrap', fontFamily:'Syne'}}>最受欢迎</div>}
+                  <div style={{fontFamily:'Syne', fontWeight:700, fontSize:16, marginBottom:6}}>{p.name}</div>
+                  <div style={{fontFamily:'DM Mono', fontSize:28, color:'var(--accent)', marginBottom:4}}>{p.price}<span style={{fontSize:13, color:'var(--text3)'}}>{p.per}</span></div>
+                  <div style={{fontSize:11, color:'var(--text3)', marginBottom:14, textDecoration:'line-through'}}>{p.vs}</div>
+                  <ul style={{listStyle:'none', display:'flex', flexDirection:'column', gap:7}}>
+                    {p.features.map(f=>(
+                      <li key={f} style={{fontSize:12, color:'var(--text2)', display:'flex', alignItems:'flex-start', gap:7}}>
+                        <i className="ti ti-check" style={{color:'var(--green)', fontSize:13, marginTop:1, flexShrink:0}} aria-hidden />{f}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* DASHBOARD TAB */}
+        {tab==='dashboard' && (
+          <div style={{flex:1, overflowY:'auto', padding:24, display:'flex', flexDirection:'column', gap:16}}>
+            <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12}}>
+              {[{label:'历史案例总量',value:'79,959',change:'+23%'},{label:'统计节省总额',value:'$482K',change:'+31%',color:'var(--green)'},{label:'撤销成功率',value:'67%',change:'+4%',color:'var(--accent)'},{label:'本月分析次数',value:'1,284',change:'+18%'}].map(s=>(
+                <div key={s.label} style={{background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:8, padding:14}}>
+                  <div style={{fontSize:10, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8}}>{s.label}</div>
+                  <div style={{fontFamily:'Syne', fontWeight:700, fontSize:24, color:s.color||'var(--text)'}}>{s.value}</div>
+                  <div style={{fontSize:11, color:'var(--green)', marginTop:3}}>{s.change}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

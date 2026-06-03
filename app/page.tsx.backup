@@ -1,0 +1,485 @@
+'use client'
+
+import { useState, useRef } from 'react'
+import { queryTicketData } from '@/lib/supabase'
+
+interface ViolationResult {
+  violation_code: string
+  description: string
+  law_violated: string
+  analysis: {
+    dismissRate: number | null
+    reducedRate: number | null
+    upheldRate: number | null
+    total: number
+    avgOriginalPenalty: number | null
+    avgFinalPenalty: number | null
+    violationTitle: string | null
+    defenseSamples: string[]
+    strategies: string[]
+  } | null
+}
+
+interface AnalysisResult {
+  agency: string
+  summons_number: string
+  hearing_date: string
+  business_name: string
+  violations: ViolationResult[]
+}
+
+export default function Home() {
+  const [file, setFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [appealText, setAppealText] = useState<string | null>(null)
+  const [appealLoading, setAppealLoading] = useState(false)
+  const [showAppeal, setShowAppeal] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setFile(f)
+    setResult(null)
+    setError(null)
+    setAppealText(null)
+    setShowAppeal(false)
+    const reader = new FileReader()
+    reader.onload = (ev) => setPreview(ev.target?.result as string)
+    reader.readAsDataURL(f)
+  }
+
+  const handleAnalyze = async () => {
+    if (!file) return
+    setAnalyzing(true)
+    setError(null)
+    setResult(null)
+    setAppealText(null)
+    setShowAppeal(false)
+
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve((reader.result as string).split(',')[1])
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+
+      // Step 1: OCR with GPT-4o
+      const ocrRes = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64, mimeType: file.type }),
+      })
+      const ocrData = await ocrRes.json()
+      if (!ocrRes.ok) throw new Error(ocrData.error || 'OCR 识别失败')
+
+      const { agency, summons_number, hearing_date, business_name, violation_codes } = ocrData
+
+      // Step 2: Query Supabase for each violation
+      const violations: ViolationResult[] = await Promise.all(
+        (violation_codes || []).map(async (v: any) => {
+          const analysis = await queryTicketData(agency || 'DOHMH', v.code)
+          return {
+            violation_code: v.code,
+            description: v.description || '',
+            law_violated: v.law_violated || '',
+            analysis,
+          }
+        })
+      )
+
+      setResult({ agency, summons_number, hearing_date, business_name, violations })
+    } catch (err: any) {
+      setError(err.message || '分析失败，请重试')
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
+  const handleGenerateAppeal = async () => {
+    if (!result) return
+    setAppealLoading(true)
+    try {
+      const res = await fetch('/api/appeal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agency: result.agency,
+          summons_number: result.summons_number,
+          hearing_date: result.hearing_date,
+          business_name: result.business_name,
+          violations: result.violations,
+          results: result.violations.map((v) => v.analysis),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '生成失败')
+      setAppealText(data.content)
+      setShowAppeal(true)
+    } catch (err: any) {
+      setError(err.message || '申诉书生成失败')
+    } finally {
+      setAppealLoading(false)
+    }
+  }
+
+  const getDismissColor = (rate: number | null) => {
+    if (rate === null) return '#888'
+    if (rate >= 50) return '#22c55e'
+    if (rate >= 30) return '#f59e0b'
+    return '#ef4444'
+  }
+
+  return (
+    <main style={{
+      minHeight: '100vh',
+      background: '#0a0a0f',
+      color: '#e8e4d9',
+      fontFamily: '"IBM Plex Mono", "Courier New", monospace',
+      padding: '0',
+    }}>
+      {/* Header */}
+      <header style={{
+        borderBottom: '1px solid #2a2a3a',
+        padding: '20px 32px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '16px',
+        background: '#0d0d14',
+      }}>
+        <div style={{
+          width: 36, height: 36,
+          background: '#f5c518',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 18, fontWeight: 900, color: '#000',
+          flexShrink: 0,
+        }}>N</div>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.1em', color: '#f5c518' }}>
+            NYC TICKET AI
+          </div>
+          <div style={{ fontSize: 11, color: '#666', letterSpacing: '0.05em' }}>
+            OATH HEARING DEFENSE SYSTEM · 220万条历史案例
+          </div>
+        </div>
+      </header>
+
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
+
+        {/* Upload Zone */}
+        <div
+          onClick={() => fileRef.current?.click()}
+          style={{
+            border: `2px dashed ${file ? '#f5c518' : '#2a2a3a'}`,
+            borderRadius: 4,
+            padding: '48px 32px',
+            textAlign: 'center',
+            cursor: 'pointer',
+            background: file ? 'rgba(245,197,24,0.04)' : '#0d0d14',
+            transition: 'all 0.2s',
+            marginBottom: 24,
+          }}
+        >
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
+          {preview ? (
+            <div>
+              <img
+                src={preview}
+                alt="罚单预览"
+                style={{ maxHeight: 200, maxWidth: '100%', objectFit: 'contain', marginBottom: 12 }}
+              />
+              <div style={{ fontSize: 12, color: '#f5c518' }}>{file?.name}</div>
+              <div style={{ fontSize: 11, color: '#555', marginTop: 4 }}>点击重新上传</div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.4 }}>📄</div>
+              <div style={{ fontSize: 14, color: '#888', letterSpacing: '0.05em' }}>
+                上传罚单图片
+              </div>
+              <div style={{ fontSize: 11, color: '#555', marginTop: 8 }}>
+                支持 JPG / PNG / HEIC · 点击或拖拽
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Analyze Button */}
+        {file && !result && (
+          <button
+            onClick={handleAnalyze}
+            disabled={analyzing}
+            style={{
+              width: '100%',
+              padding: '16px',
+              background: analyzing ? '#1a1a2a' : '#f5c518',
+              color: analyzing ? '#555' : '#000',
+              border: 'none',
+              borderRadius: 4,
+              fontSize: 14,
+              fontWeight: 700,
+              fontFamily: 'inherit',
+              letterSpacing: '0.1em',
+              cursor: analyzing ? 'not-allowed' : 'pointer',
+              marginBottom: 24,
+              transition: 'all 0.2s',
+            }}
+          >
+            {analyzing ? '⟳ 正在识别分析...' : '▶ 开始分析罚单'}
+          </button>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div style={{
+            background: 'rgba(239,68,68,0.1)',
+            border: '1px solid rgba(239,68,68,0.3)',
+            borderRadius: 4,
+            padding: '12px 16px',
+            fontSize: 13,
+            color: '#ef4444',
+            marginBottom: 24,
+          }}>
+            ✗ {error}
+          </div>
+        )}
+
+        {/* Results */}
+        {result && (
+          <div>
+            {/* Case Info */}
+            <div style={{
+              background: '#0d0d14',
+              border: '1px solid #2a2a3a',
+              borderRadius: 4,
+              padding: '20px 24px',
+              marginBottom: 24,
+            }}>
+              <div style={{ fontSize: 11, color: '#f5c518', letterSpacing: '0.15em', marginBottom: 12 }}>
+                案件信息
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px' }}>
+                {[
+                  ['执法机构', result.agency || '—'],
+                  ['传票号码', result.summons_number || '—'],
+                  ['听证日期', result.hearing_date || '—'],
+                  ['商户名称', result.business_name || '—'],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <span style={{ fontSize: 11, color: '#555' }}>{label}：</span>
+                    <span style={{ fontSize: 13, color: '#e8e4d9' }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Violations */}
+            {result.violations.map((v, i) => (
+              <div key={i} style={{
+                background: '#0d0d14',
+                border: '1px solid #2a2a3a',
+                borderRadius: 4,
+                padding: '20px 24px',
+                marginBottom: 16,
+              }}>
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                  marginBottom: 16,
+                }}>
+                  <div>
+                    <span style={{
+                      display: 'inline-block',
+                      background: '#f5c518',
+                      color: '#000',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      marginRight: 10,
+                      letterSpacing: '0.05em',
+                    }}>
+                      {v.violation_code}
+                    </span>
+                    <span style={{ fontSize: 13, color: '#aaa' }}>
+                      {v.analysis?.violationTitle || v.description || '违规条款'}
+                    </span>
+                  </div>
+                </div>
+
+                {v.analysis ? (
+                  <div>
+                    {/* Stats Row */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      gap: 12,
+                      marginBottom: 16,
+                    }}>
+                      {[
+                        ['撤销率', v.analysis.dismissRate, '%'],
+                        ['减轻率', v.analysis.reducedRate, '%'],
+                        ['历史案例', v.analysis.total, '条'],
+                      ].map(([label, value, unit]) => (
+                        <div key={label as string} style={{
+                          background: '#13131f',
+                          border: '1px solid #1e1e2e',
+                          borderRadius: 4,
+                          padding: '12px 16px',
+                          textAlign: 'center',
+                        }}>
+                          <div style={{
+                            fontSize: 22,
+                            fontWeight: 700,
+                            color: label === '撤销率' ? getDismissColor(value as number) : '#e8e4d9',
+                            lineHeight: 1,
+                            marginBottom: 4,
+                          }}>
+                            {value !== null ? `${value}${unit}` : '—'}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#555', letterSpacing: '0.05em' }}>
+                            {label as string}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Defense Samples */}
+                    {v.analysis.defenseSamples?.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 11, color: '#555', letterSpacing: '0.1em', marginBottom: 8 }}>
+                          成功辩护案例摘要
+                        </div>
+                        {v.analysis.defenseSamples.slice(0, 3).map((s, si) => (
+                          <div key={si} style={{
+                            fontSize: 12,
+                            color: '#888',
+                            padding: '8px 12px',
+                            borderLeft: '2px solid #2a2a3a',
+                            marginBottom: 6,
+                            lineHeight: 1.5,
+                          }}>
+                            {s}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: '#555' }}>暂无历史数据</div>
+                )}
+              </div>
+            ))}
+
+            {/* Generate Appeal Button */}
+            <button
+              onClick={handleGenerateAppeal}
+              disabled={appealLoading}
+              style={{
+                width: '100%',
+                padding: '20px',
+                background: appealLoading ? '#1a1a2a' : '#f5c518',
+                color: appealLoading ? '#555' : '#000',
+                border: 'none',
+                borderRadius: 4,
+                fontSize: 16,
+                fontWeight: 900,
+                fontFamily: 'inherit',
+                letterSpacing: '0.12em',
+                cursor: appealLoading ? 'not-allowed' : 'pointer',
+                marginTop: 8,
+                marginBottom: 32,
+                transition: 'all 0.2s',
+                boxShadow: appealLoading ? 'none' : '0 0 24px rgba(245,197,24,0.2)',
+              }}
+            >
+              {appealLoading ? '⟳ 正在生成申诉书...' : '✦ 生成完整申诉书'}
+            </button>
+          </div>
+        )}
+
+        {/* Appeal Modal */}
+        {showAppeal && appealText && (
+          <div style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.85)',
+            zIndex: 100,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '24px',
+          }}>
+            <div style={{
+              background: '#0d0d14',
+              border: '1px solid #2a2a3a',
+              borderRadius: 4,
+              width: '100%',
+              maxWidth: 720,
+              maxHeight: '85vh',
+              display: 'flex', flexDirection: 'column',
+            }}>
+              <div style={{
+                padding: '16px 24px',
+                borderBottom: '1px solid #2a2a3a',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#f5c518', letterSpacing: '0.1em' }}>
+                  申诉书
+                </span>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(appealText)}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid #2a2a3a',
+                      color: '#888',
+                      padding: '6px 14px',
+                      borderRadius: 4,
+                      fontSize: 12,
+                      fontFamily: 'inherit',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    复制
+                  </button>
+                  <button
+                    onClick={() => setShowAppeal(false)}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid #2a2a3a',
+                      color: '#888',
+                      padding: '6px 14px',
+                      borderRadius: 4,
+                      fontSize: 12,
+                      fontFamily: 'inherit',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    关闭
+                  </button>
+                </div>
+              </div>
+              <div style={{
+                padding: '24px',
+                overflowY: 'auto',
+                fontSize: 13,
+                lineHeight: 1.8,
+                color: '#c8c4b9',
+                whiteSpace: 'pre-wrap',
+              }}>
+                {appealText}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
+  )
+}

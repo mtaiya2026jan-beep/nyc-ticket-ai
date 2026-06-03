@@ -1,0 +1,79 @@
+import { NextRequest, NextResponse } from 'next/server'
+
+export async function POST(req: NextRequest) {
+  try {
+    const { agency, summons_number, hearing_date, business_name, violations, results } = await req.json()
+
+    if (!violations || violations.length === 0) {
+      return NextResponse.json({ error: '缺少违规信息' }, { status: 400 })
+    }
+
+    // 构建每项违规的摘要
+    const violationSummaries = violations.map((v: any, i: number) => {
+      const r = results?.[i]?.analysis
+      return `
+违规项 ${i+1}：代码 ${v.violation_code}
+- 法规依据：${v.law_violated || '未知'}
+- 违规描述：${v.description || '未知'}
+- 历史撤销率：${r?.dismissRate !== null ? r?.dismissRate + '%' : '无数据'}
+- AI建议策略：${r?.strategies?.join('；') || '无'}
+`
+    }).join('\n')
+
+    const systemPrompt = `你是一位经验丰富的纽约市行政处罚辩护律师，擅长OATH听证程序。
+请用专业、正式的中文起草一份完整的听证申诉书。
+
+申诉书必须包含以下结构：
+1. 【申诉人信息】
+2. 【案件基本情况】
+3. 【总体申诉意见】（2-3段，说明整体立场和态度）
+4. 【逐项辩护意见】（针对每个违规代码分别辩护，引用具体法规条文）
+5. 【综合证据清单】（列出需准备的所有证据）
+6. 【请求事项】（明确请求撤销或减轻处罚）
+7. 【结语】
+
+语气专业正式，措辞准确，具有实际法律价值。不要出现占位符，所有内容必须完整填写。`
+
+    const userPrompt = `请为以下案件起草完整的听证申诉书：
+
+执法机构：${agency} (Department of Health and Mental Hygiene)
+传票号码：${summons_number || '未提供'}
+听证日期：${hearing_date || '待定'}
+商户名称：${business_name || '申诉人'}
+
+违规详情：
+${violationSummaries}
+
+要求：
+- 申诉书要有实际法律效力
+- 针对每项违规提供具体辩护论点
+- 引用相关法规（NYCHC等）
+- 综合证据清单要具体可操作
+- 全文用中文，专业正式`
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        max_tokens: 3000,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]
+      })
+    })
+
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error?.message || '生成失败')
+
+    const content = data.choices[0].message.content
+    return NextResponse.json({ success: true, content })
+
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || '生成失败' }, { status: 500 })
+  }
+}
