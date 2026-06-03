@@ -128,11 +128,11 @@ export default function Home() {
       if (!res.ok || !data.success) { setScanError(data.error || '识别失败'); return }
       const r = data.data
       if (r.summons_number) {
-          setSummons(r.summons_number?.value ?? r.summons_number)
+          setSummons(r.summons_number)
           if (r.summons_number?.confidence != null) setFieldConfidence(p => ({...p, summons: r.summons_number.confidence}))
         }
       if (r.business_name) {
-          setBusinessName(r.business_name?.value ?? r.business_name)
+          setBusinessName(r.business_name)
           if (r.business_name?.confidence != null) setFieldConfidence(p => ({...p, businessName: r.business_name.confidence}))
         }
         if (r.place_of_occurrence) {
@@ -161,8 +161,8 @@ export default function Home() {
       if (!res.ok || !data.success) { setScanError(data.error || '识别失败'); return }
       const r: ScanResult = data.result
       if (r.agency) setAgency(r.agency.includes('-') ? r.agency.split('-')[0].trim() : r.agency.trim())
-      if (r.summons_number) setSummons(r.summons_number?.value ?? r.summons_number)
-        if (r.business_name) setBusinessName(r.business_name?.value ?? r.business_name)
+      if (r.summons_number) setSummons(r.summons_number)
+        if (r.business_name) setBusinessName(r.business_name)
         if (r.place_of_occurrence) setPlaceOfOccurrence(r.place_of_occurrence?.value ?? r.place_of_occurrence)
       if (r.hearing_date) {
         // convert to YYYY-MM-DD for input storage
@@ -694,7 +694,7 @@ export default function Home() {
                   </div>
                   <div>
                     <label style={{fontSize:11, color:'var(--text3)', marginBottom:5, display:'block', textTransform:'uppercase', letterSpacing:'0.06em'}}>传票号码</label>
-                    <input value={summons} onChange={e=>setSummons(e.target.value)} placeholder="如 123456789" title={fieldConfidence.summons != null && fieldConfidence.summons < 0.99 ? `识别置信度${Math.round((fieldConfidence.summons||0)*100)}%，请确认` : undefined} style={{width:'100%', background: fieldConfidence.summons != null && fieldConfidence.summons < 0.98 ? 'rgba(255,80,80,0.13)' : fieldConfidence.summons != null && fieldConfidence.summons < 0.99 ? 'rgba(255,180,0,0.13)' : 'var(--bg3)', border: fieldConfidence.summons != null && fieldConfidence.summons < 0.98 ? '1px solid #ff5050' : fieldConfidence.summons != null && fieldConfidence.summons < 0.99 ? '1px solid #ffb400' : '1px solid var(--border2)', borderRadius:8, color:'var(--text)', fontSize:13, padding:'8px 10px', outline:'none'}} />
+                    <input value={summons} onChange={e=>setSummons(e.target.value)} placeholder="如 123456789" title={fieldConfidence.summons != null && fieldConfidence.summons < 0.7 ? `识别置信度${Math.round((fieldConfidence.summons||0)*100)}%，请确认` : undefined} style={{width:'100%', background: fieldConfidence.summons != null && fieldConfidence.summons < 0.5 ? 'rgba(255,80,80,0.13)' : fieldConfidence.summons != null && fieldConfidence.summons < 0.7 ? 'rgba(255,180,0,0.13)' : 'var(--bg3)', border: fieldConfidence.summons != null && fieldConfidence.summons < 0.5 ? '1px solid #ff5050' : fieldConfidence.summons != null && fieldConfidence.summons < 0.7 ? '1px solid #ffb400' : '1px solid var(--border2)', borderRadius:8, color:'var(--text)', fontSize:13, padding:'8px 10px', outline:'none'}} />
                   </div>
                 </div>
                 <div style={{marginBottom:12}}>
