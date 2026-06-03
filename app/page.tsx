@@ -128,17 +128,16 @@ export default function Home() {
       })
       const data = await res.json()
       if (!res.ok || !data.success) { setScanError(data.error || '识别失败'); return }
-        const r = data.result
-        const val = (f: any) => (f && typeof f === 'object' ? f.value : f)
-        const conf = (f: any) => (f && typeof f === 'object' ? f.confidence : null)
+      const r = data.result
+        const val = (f) => (f && typeof f === "object" ? f.value : f)
+        const conf = (f) => (f && typeof f === "object" ? f.confidence : null)
         if (val(r.summons_number)) setSummons(val(r.summons_number))
         if (val(r.business_name)) setBusinessName(val(r.business_name))
         if (val(r.place_of_occurrence)) setPlaceOfOccurrence(val(r.place_of_occurrence))
         const ag = val(r.agency)
         if (ag) setAgency(ag)
         if (val(r.hearing_date)) setHearingDate(val(r.hearing_date))
-        setFieldConfidence(p => ({
-          ...p,
+        setFieldConfidence(p => ({...p,
           summons: conf(r.summons_number) ?? p.summons,
           business_name: conf(r.business_name) ?? p.business_name,
           hearing_date: conf(r.hearing_date) ?? p.hearing_date,
@@ -147,7 +146,6 @@ export default function Home() {
         setScannedViolations(r.violations)
         setScanSuccess(true)
         setTimeout(() => runMultiAnalysis(ag || agency, r.violations), 100)
-    }
     } catch { setScanError('网络错误') }
     finally { setScanning(false) }
   }
@@ -163,25 +161,14 @@ export default function Home() {
       const res = await fetch('/api/scan', { method: 'POST', body: formData })
       const data = await res.json()
       if (!res.ok || !data.success) { setScanError(data.error || '识别失败'); return }
-        const r = data.result
-
-        const val = (f: any) => (f && typeof f === 'object' ? f.value : f)
-        const conf = (f: any) => (f && typeof f === 'object' ? f.confidence : null)
-
-        const agency = val(r.agency)
-        if (agency) setAgency(agency.includes('-') ? agency.split('-')[0].trim() : agency.trim())
-        if (val(r.summons_number)) setSummons(val(r.summons_number))
-        if (val(r.business_name)) setBusinessName(val(r.business_name))
-        if (val(r.place_of_occurrence)) setPlaceOfOccurrence(val(r.place_of_occurrence))
-        if (val(r.hearing_date)) setHearingDate(toInputDate(val(r.hearing_date)))
-
-        setFieldConfidence(p => ({
-          ...p,
-          summons: conf(r.summons_number) ?? p.summons,
-          business_name: conf(r.business_name) ?? p.business_name,
-          hearing_date: conf(r.hearing_date) ?? p.hearing_date,
-          place_of_occurrence: conf(r.place_of_occurrence) ?? p.place_of_occurrence,
-        }))
+      const r: ScanResult = data.result
+      if (r.agency) setAgency(r.agency.includes('-') ? r.agency.split('-')[0].trim() : r.agency.trim())
+      if (r.summons_number) setSummons(r.summons_number)
+        if (r.business_name) setBusinessName(r.business_name)
+        if (r.place_of_occurrence) setPlaceOfOccurrence(r.place_of_occurrence)
+      if (r.hearing_date) {
+        // convert to YYYY-MM-DD for input storage
+        setHearingDate(toInputDate(r.hearing_date))
       }
       if (r.violations?.length > 0) {
         setCode(r.violations[0].violation_code)
@@ -249,6 +236,17 @@ export default function Home() {
       setModalContent(data.content || data.error || '生成失败')
     } catch { setModalContent('网络错误') }
     finally { setModalLoading(false); setHearingManualLoading(false) }
+  }
+
+  const handleCheckout = async (plan) => {
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ plan, summonsNumber: summons })
+    })
+    const data = await res.json()
+    if (data.url) window.location.href = data.url
+    else alert("支付初始化失败：" + data.error)
   }
 
   const runFullAppeal = async () => {
@@ -384,6 +382,7 @@ export default function Home() {
           </div>
         </div>
       </div>
+<div style={{display:"flex",gap:8,paddingTop:12,borderTop:"1px solid var(--border)"}}><button onClick={()=>handleCheckout("basic")} style={{flex:1,padding:"9px",borderRadius:8,border:"none",background:"var(--accent)",color:"#000",fontFamily:"Inter",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6,fontWeight:700}}><i className="ti ti-credit-card" aria-hidden /> $49 立即解锁申诉书</button><button onClick={()=>handleCheckout("pro")} style={{flex:1,padding:"9px",borderRadius:8,border:"1px solid rgba(232,255,71,0.25)",background:"rgba(232,255,71,0.08)",color:"var(--accent)",fontFamily:"Inter",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><i className="ti ti-star" aria-hidden /> 专业版 $99</button></div>
       <div style={{display:'flex', gap:8, paddingTop:12, borderTop:'1px solid var(--border)'}}><button onClick={runFullAppeal} style={{flex:2, padding:'9px', borderRadius:8, border:'1px solid rgba(232,255,71,0.25)', background:'rgba(232,255,71,0.08)', color:'var(--accent)', fontFamily:'Inter', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6}}><i className="ti ti-file-text" aria-hidden />生成完整申诉书（所有违规项）</button>
         {[{icon:'file-text',label:'申诉材料',primary:true,mode:'appeal'},{icon:'list',label:'证据清单',mode:'evidence'},{icon:'calendar',label:'整改计划',mode:'plan'}].map(btn=>(
           <button key={btn.label} onClick={()=>runMode(btn.mode, vc, desc)} style={{flex:1, padding:'9px', borderRadius:8, border:btn.primary?'1px solid rgba(232,255,71,0.25)':'1px solid var(--border2)', background:btn.primary?'rgba(232,255,71,0.08)':'var(--bg3)', color:btn.primary?'var(--accent)':'var(--text)', fontFamily:'Inter', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6}}>
