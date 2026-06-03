@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   "place_of_occurrence": { "value": "完整地址，没有则null", "confidence": 0.95 },
 }`
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', { signal: AbortSignal.timeout(60000),
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

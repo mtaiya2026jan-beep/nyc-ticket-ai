@@ -128,24 +128,26 @@ export default function Home() {
       })
       const data = await res.json()
       if (!res.ok || !data.success) { setScanError(data.error || '识别失败'); return }
-      const r = data.data
-      if (r.summons_number) {
-          setSummons(r.summons_number)
-          if (r.summons_number?.confidence != null) setFieldConfidence(p => ({...p, summons: r.summons_number.confidence}))
-        }
-      if (r.business_name) {
-          setBusinessName(r.business_name)
-          if (r.business_name?.confidence != null) setFieldConfidence(p => ({...p, businessName: r.business_name.confidence}))
-        }
-        if (r.place_of_occurrence) {
-          setPlaceOfOccurrence(r.place_of_occurrence)
-          if (r.place_of_occurrence?.confidence != null) setFieldConfidence(p => ({...p, placeOfOccurrence: r.place_of_occurrence.confidence}))
-        }
-      if (r.agency) setAgency(r.agency)
-      if (r.hearing_date) setHearingDate(r.hearing_date)
-      setScannedViolations(r.violations)
-      setScanSuccess(true)
-      setTimeout(() => runMultiAnalysis(r.agency || agency, r.violations), 100)
+        const r = data.result
+        const val = (f: any) => (f && typeof f === 'object' ? f.value : f)
+        const conf = (f: any) => (f && typeof f === 'object' ? f.confidence : null)
+        if (val(r.summons_number)) setSummons(val(r.summons_number))
+        if (val(r.business_name)) setBusinessName(val(r.business_name))
+        if (val(r.place_of_occurrence)) setPlaceOfOccurrence(val(r.place_of_occurrence))
+        const ag = val(r.agency)
+        if (ag) setAgency(ag)
+        if (val(r.hearing_date)) setHearingDate(val(r.hearing_date))
+        setFieldConfidence(p => ({
+          ...p,
+          summons: conf(r.summons_number) ?? p.summons,
+          business_name: conf(r.business_name) ?? p.business_name,
+          hearing_date: conf(r.hearing_date) ?? p.hearing_date,
+          place_of_occurrence: conf(r.place_of_occurrence) ?? p.place_of_occurrence,
+        }))
+        setScannedViolations(r.violations)
+        setScanSuccess(true)
+        setTimeout(() => runMultiAnalysis(ag || agency, r.violations), 100)
+    }
     } catch { setScanError('网络错误') }
     finally { setScanning(false) }
   }
@@ -161,14 +163,25 @@ export default function Home() {
       const res = await fetch('/api/scan', { method: 'POST', body: formData })
       const data = await res.json()
       if (!res.ok || !data.success) { setScanError(data.error || '识别失败'); return }
-      const r: ScanResult = data.result
-      if (r.agency) setAgency(r.agency.includes('-') ? r.agency.split('-')[0].trim() : r.agency.trim())
-      if (r.summons_number) setSummons(r.summons_number)
-        if (r.business_name) setBusinessName(r.business_name)
-        if (r.place_of_occurrence) setPlaceOfOccurrence(r.place_of_occurrence)
-      if (r.hearing_date) {
-        // convert to YYYY-MM-DD for input storage
-        setHearingDate(toInputDate(r.hearing_date))
+        const r = data.result
+
+        const val = (f: any) => (f && typeof f === 'object' ? f.value : f)
+        const conf = (f: any) => (f && typeof f === 'object' ? f.confidence : null)
+
+        const agency = val(r.agency)
+        if (agency) setAgency(agency.includes('-') ? agency.split('-')[0].trim() : agency.trim())
+        if (val(r.summons_number)) setSummons(val(r.summons_number))
+        if (val(r.business_name)) setBusinessName(val(r.business_name))
+        if (val(r.place_of_occurrence)) setPlaceOfOccurrence(val(r.place_of_occurrence))
+        if (val(r.hearing_date)) setHearingDate(toInputDate(val(r.hearing_date)))
+
+        setFieldConfidence(p => ({
+          ...p,
+          summons: conf(r.summons_number) ?? p.summons,
+          business_name: conf(r.business_name) ?? p.business_name,
+          hearing_date: conf(r.hearing_date) ?? p.hearing_date,
+          place_of_occurrence: conf(r.place_of_occurrence) ?? p.place_of_occurrence,
+        }))
       }
       if (r.violations?.length > 0) {
         setCode(r.violations[0].violation_code)
