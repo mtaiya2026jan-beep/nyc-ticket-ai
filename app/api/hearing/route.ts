@@ -1,40 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+const NYC_OPEN_DATA_URL = 'https://data.cityofnewyork.us/resource/jz4z-kudi.json'
+const APP_TOKEN = process.env.NYC_OPEN_DATA_APP_TOKEN || ''
+
+async function fetchCasesByCode(code: string, resultFilter: string, limit: number) {
+  const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
+    .toISOString().split('T')[0]
+
+  const queries = [1, 2, 3].map(i => {
+    const params = new URLSearchParams({
+      [`$where`]: `charge_${i}_code='${code}' AND hearing_date>='${oneYearAgo}' AND ${resultFilter}`,
+      [`$limit`]: String(limit),
+      [`$select`]: 'hearing_result,penalty_imposed,charge_1_code_description,charge_2_code_description,charge_3_code_description',
+      [`$order`]: 'hearing_date DESC',
+    })
+    return `${NYC_OPEN_DATA_URL}?${params.toString()}`
+  })
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (APP_TOKEN) headers['X-App-Token'] = APP_TOKEN
+
+  const results = await Promise.all(
+    queries.map(url =>
+      fetch(url, { headers, next: { revalidate: 3600 } } as any)
+        .then(r => r.ok ? r.json() : [])
+        .catch(() => [])
+    )
+  )
+
+  // Merge and deduplicate
+  const all = results.flat()
+  return all
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const { violations, questionnaire = {}, business_name } = await req.json()
+    const { violations, business_name, questionnaire } = await req.json()
 
     if (!violations || violations.length === 0) {
       return NextResponse.json({ error: '缺少违规信息' }, { status: 400 })
     }
 
-    // 每个违规代码查询败诉案例
+    const questionnaireNote = questionnaire
+      ? `商户补充信息：${JSON.stringify(questionnaire)}`
+      : ''
+
+    // 每个违规代码查询败诉和撤销案例
     const violationData: any[] = []
     for (const v of violations) {
       const code = v.violation_code
-      // 查询该违规代码的败诉案例（guilty/sustained）
-      const { data: sustainedCases } = await supabase
-        .from('hearing_cases')
-        .select('hearing_result, penalty_imposed, charge_1_code_description, charge_2_code_description, charge_3_code_description')
-        .or(`charge_1_code_description.ilike.%${code}%,charge_2_code_description.ilike.%${code}%,charge_3_code_description.ilike.%${code}%`)
-        .or('hearing_result.ilike.%guilty%,hearing_result.ilike.%sustained%,hearing_result.ilike.%violation%')
-        .not('hearing_result', 'ilike', '%not guilty%')
-        .not('hearing_result', 'ilike', '%dismiss%')
-        .limit(20)
 
-      // 查询撤销案例作为对比
-      const { data: dismissedCases } = await supabase
-        .from('hearing_cases')
-        .select('hearing_result, penalty_imposed, charge_1_code_description')
-        .or(`charge_1_code_description.ilike.%${code}%,charge_2_code_description.ilike.%${code}%`)
-        .or('hearing_result.ilike.%not guilty%,hearing_result.ilike.%dismiss%,hearing_result.ilike.%withdrawn%')
-        .limit(10)
+      // 查败诉案例（guilty/sustained）
+      const sustainedFilter = `(hearing_result ilike '%guilty%' OR hearing_result ilike '%sustained%' OR hearing_result ilike '%violation%') AND hearing_result NOT ilike '%not guilty%'`
+      const sustainedCases = await fetchCasesByCode(code, sustainedFilter, 20)
+
+      // 查撤销案例
+      const dismissedFilter = `(hearing_result ilike '%not guilty%' OR hearing_result ilike '%dismiss%' OR hearing_result ilike '%withdrawn%')`
+      const dismissedCases = await fetchCasesByCode(code, dismissedFilter, 10)
 
       violationData.push({
         code,
@@ -58,26 +80,17 @@ export async function POST(req: NextRequest) {
 【${vd.code}违规 — 败诉案例分析】
 本次违规描述：${vd.description || '见罚单'}
 败诉案例样本（共${vd.sustainedCases.length}条）：
-${sustainedSample || '无数据'}
+${sustainedSample || '暂无数据'}
+
 撤销案例样本（共${vd.dismissedCases.length}条）：
-${dismissedSample || '无数据'}
+${dismissedSample || '暂无数据'}
 `
-    }).join('\n')
+    }).join('\n---\n')
 
-    // 问卷信息摘要
-    const questionnaireNote = Object.keys(questionnaire).length > 0 ? `
-【当事人情况】
-- 违规记录：${questionnaire['priorViolations'] || '未填'}
-- 整改情况：${questionnaire['immediatelyRemediated'] || '未填'}
-- 出席听证：${questionnaire['willingToAttend'] || '未填'}
-- 检查方式：${questionnaire['inspectionType'] || '未填'}
-- 程序瑕疵：检查员出示证件=${questionnaire['inspectorShowedId'] || '未填'}，给予陈述机会=${questionnaire['allowedToSpeak'] || '未填'}
-` : ''
+    const systemPrompt = `你是一位专业的NYC行政法庭听证顾问，擅长帮助餐厅和食品企业准备DOHMH违规听证。`
 
-    const systemPrompt = `你是纽约市OATH听证程序的资深辩护顾问，专门帮助餐饮商户准备听证会。
-基于真实历史案例数据，生成针对性的听证准备手册。手册必须实用、具体、可操作。`
-
-    const userPrompt = `基于以下历史案例数据和当事人情况，生成一份完整的【听证准备手册】。
+    const userPrompt = `
+生成一份完整的【听证准备手册】。
 
 ${casesSummary}
 ${questionnaireNote}
@@ -106,7 +119,8 @@ ${questionnaireNote}
 要求：
 - 所有建议必须针对本案具体违规事实，不得泛泛而谈
 - 引用历史案例数据时用"历史数据显示"表述
-- 全文不得出现律师姓名或律所信息`
+- 全文不得出现律师姓名或律所信息
+`
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
