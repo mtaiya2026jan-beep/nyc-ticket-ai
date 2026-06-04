@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { exportAppealAsDocx, exportAppealAsPdf } from "@/lib/exportAppeal"
 
 type ViolationResult = {
