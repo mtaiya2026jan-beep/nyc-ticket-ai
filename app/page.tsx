@@ -1,6 +1,5 @@
 'use client'
-import { useState, useRef, useEffect, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState, useRef, useEffect } from 'react'
 import { exportAppealAsDocx, exportAppealAsPdf } from "@/lib/exportAppeal"
 
 type ViolationResult = {
@@ -91,19 +90,16 @@ function HomeContent() {
   const [showModal, setShowModal] = useState(false)
   const [isPaid, setIsPaid] = useState(false)
 
-  const searchParams = useSearchParams()
   useEffect(() => {
-    const payment = searchParams.get('payment')
-    if (payment === 'success') {
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('payment') === 'success') {
       sessionStorage.setItem('isPaid', 'true')
       setIsPaid(true)
       window.history.replaceState({}, '', '/')
-    } else {
-      if (sessionStorage.getItem('isPaid') === 'true') {
-        setIsPaid(true)
-      }
+    } else if (sessionStorage.getItem('isPaid') === 'true') {
+      setIsPaid(true)
     }
-  }, [searchParams])
+  }, [])
   const [scanning, setScanning] = useState(false)
   const [scanPreview, setScanPreview] = useState<string|null>(null)
   const [scanSuccess, setScanSuccess] = useState(false)
@@ -954,9 +950,5 @@ const parseFineRange = (s: string) => {
 }
 
 export default function Home() {
-  return (
-    <Suspense fallback={null}>
-      <HomeContent />
-    </Suspense>
-  )
+  return <HomeContent />
 }
