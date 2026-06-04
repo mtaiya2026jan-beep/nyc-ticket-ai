@@ -88,6 +88,15 @@ export default function Home() {
   const [modalTitle, setModalTitle] = useState('')
   const [modalLoading, setModalLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
+  const [isPaid, setIsPaid] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('payment') === 'success') {
+      setIsPaid(true)
+      window.history.replaceState({}, '', '/')
+    }
+  }, [])
   const [scanning, setScanning] = useState(false)
   const [scanPreview, setScanPreview] = useState<string|null>(null)
   const [scanSuccess, setScanSuccess] = useState(false)
@@ -383,7 +392,7 @@ export default function Home() {
         </div>
       </div>
 <div style={{display:"flex",gap:8,paddingTop:12,borderTop:"1px solid var(--border)"}}><button onClick={()=>handleCheckout("basic")} style={{flex:1,padding:"9px",borderRadius:8,border:"none",background:"var(--accent)",color:"#000",fontFamily:"Inter",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6,fontWeight:700}}><i className="ti ti-credit-card" aria-hidden /> $49 立即解锁申诉书</button><button onClick={()=>handleCheckout("pro")} style={{flex:1,padding:"9px",borderRadius:8,border:"1px solid rgba(232,255,71,0.25)",background:"rgba(232,255,71,0.08)",color:"var(--accent)",fontFamily:"Inter",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><i className="ti ti-star" aria-hidden /> 专业版 $99</button></div>
-      <div style={{display:'flex', gap:8, paddingTop:12, borderTop:'1px solid var(--border)'}}><button onClick={runFullAppeal} style={{flex:2, padding:'9px', borderRadius:8, border:'1px solid rgba(232,255,71,0.25)', background:'rgba(232,255,71,0.08)', color:'var(--accent)', fontFamily:'Inter', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6}}><i className="ti ti-file-text" aria-hidden />生成完整申诉书（所有违规项）</button>
+      <div style={{display:'flex', gap:8, paddingTop:12, borderTop:'1px solid var(--border)'}}><button onClick={isPaid ? runFullAppeal : () => alert('请先完成支付后再生成申诉书')} disabled={!isPaid} style={{flex:2, padding:'9px', borderRadius:8, border:'1px solid rgba(232,255,71,0.25)', background:'rgba(232,255,71,0.08)', color:'var(--accent)', fontFamily:'Inter', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6}}><i className="ti ti-file-text" aria-hidden />生成完整申诉书（所有违规项）</button>
         {[{icon:'file-text',label:'申诉材料',primary:true,mode:'appeal'},{icon:'list',label:'证据清单',mode:'evidence'},{icon:'calendar',label:'整改计划',mode:'plan'}].map(btn=>(
           <button key={btn.label} onClick={()=>runMode(btn.mode, vc, desc)} style={{flex:1, padding:'9px', borderRadius:8, border:btn.primary?'1px solid rgba(232,255,71,0.25)':'1px solid var(--border2)', background:btn.primary?'rgba(232,255,71,0.08)':'var(--bg3)', color:btn.primary?'var(--accent)':'var(--text)', fontFamily:'Inter', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6}}>
             <i className={`ti ti-${btn.icon}`} aria-hidden />{btn.label}
