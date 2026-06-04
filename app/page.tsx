@@ -93,12 +93,15 @@ function HomeContent() {
 
   const searchParams = useSearchParams()
   useEffect(() => {
-    if (searchParams.get('payment') === 'success') {
+    const payment = searchParams.get('payment')
+    if (payment === 'success') {
       sessionStorage.setItem('isPaid', 'true')
       setIsPaid(true)
       window.history.replaceState({}, '', '/')
-    } else if (sessionStorage.getItem('isPaid') === 'true') {
-      setIsPaid(true)
+    } else {
+      if (sessionStorage.getItem('isPaid') === 'true') {
+        setIsPaid(true)
+      }
     }
   }, [searchParams])
   const [scanning, setScanning] = useState(false)
