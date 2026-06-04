@@ -1,5 +1,6 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { exportAppealAsDocx, exportAppealAsPdf } from "@/lib/exportAppeal"
 
 type ViolationResult = {
@@ -67,7 +68,7 @@ function toInputDate(dateStr: string): string {
   return dateStr
 }
 
-export default function Home() {
+function HomeContent() {
   const [tab, setTab] = useState<'analyze'|'dashboard'|'pricing'>('analyze')
   const [agency, setAgency] = useState('')
   const [code, setCode] = useState('')
@@ -90,16 +91,16 @@ export default function Home() {
   const [showModal, setShowModal] = useState(false)
   const [isPaid, setIsPaid] = useState(false)
 
+  const searchParams = useSearchParams()
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('payment') === 'success') {
+    if (searchParams.get('payment') === 'success') {
       sessionStorage.setItem('isPaid', 'true')
       setIsPaid(true)
       window.history.replaceState({}, '', '/')
     } else if (sessionStorage.getItem('isPaid') === 'true') {
       setIsPaid(true)
     }
-  }, [])
+  }, [searchParams])
   const [scanning, setScanning] = useState(false)
   const [scanPreview, setScanPreview] = useState<string|null>(null)
   const [scanSuccess, setScanSuccess] = useState(false)
@@ -946,5 +947,13 @@ const parseFineRange = (s: string) => {
         )}
       </div>
     </div>
+  )
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   )
 }
