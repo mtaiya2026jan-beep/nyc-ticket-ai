@@ -88,7 +88,7 @@ export default function Home() {
   const [modalTitle, setModalTitle] = useState('')
   const [modalLoading, setModalLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
-  const [isPaid, setIsPaid] = useState(() => {
+  const [isPaid, setIsPaid] = useState(true)
     if (typeof window === 'undefined') return false
     const params = new URLSearchParams(window.location.search)
     if (params.get('payment') === 'success') {
