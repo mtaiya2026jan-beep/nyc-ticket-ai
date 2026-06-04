@@ -873,7 +873,7 @@ const parseFineRange = (s: string) => {
                           ))}
                         </div>
                         <div style={{display:'flex', gap:8, padding:'12px 18px', borderTop:'1px solid var(--border)'}}>
-                          <button onClick={runFullAppeal} style={{flex:2, padding:'9px', borderRadius:8, border:'1px solid rgba(232,255,71,0.25)', background:'rgba(232,255,71,0.08)', color:'var(--accent)', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6}}>
+                          <button onClick={isPaid ? runFullAppeal : () => alert('请先完成支付后再生成申诉书')} disabled={!isPaid} style={{flex:2, padding:'9px', borderRadius:8, border:'1px solid rgba(232,255,71,0.25)', background:'rgba(232,255,71,0.08)', color:'var(--accent)', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6}}>
                             <i className="ti ti-file-text" aria-hidden /> 生成完整申诉书
                           </button>
                           <button onClick={runHearingManual} disabled={hearingManualLoading} style={{flex:1, padding:'9px', borderRadius:8, border:'1px solid rgba(71,255,154,0.25)', background:'rgba(71,255,154,0.06)', color:'var(--green)', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6}}>
