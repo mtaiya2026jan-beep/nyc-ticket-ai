@@ -95,7 +95,7 @@ function HomeContent() {
     if (url.searchParams.get('payment') === 'success') {
       sessionStorage.setItem('isPaid', 'true')
       setIsPaid(true)
-      window.history.replaceState({}, '', '/')
+      console.log('payment=success detected, setting isPaid')
     } else if (sessionStorage.getItem('isPaid') === 'true') {
       setIsPaid(true)
     }
