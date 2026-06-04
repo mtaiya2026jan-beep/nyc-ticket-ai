@@ -93,8 +93,11 @@ export default function Home() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('payment') === 'success') {
+      sessionStorage.setItem('isPaid', 'true')
       setIsPaid(true)
       window.history.replaceState({}, '', '/')
+    } else if (sessionStorage.getItem('isPaid') === 'true') {
+      setIsPaid(true)
     }
   }, [])
   const [scanning, setScanning] = useState(false)
