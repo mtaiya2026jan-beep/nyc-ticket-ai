@@ -96,6 +96,21 @@ function HomeContent() {
       sessionStorage.setItem('isPaid', 'true')
       setIsPaid(true)
       console.log('payment=success detected, setting isPaid')
+      // 恢复付款前的分析结果
+      const saved = sessionStorage.getItem('pendingResults')
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          setMultiResults(parsed)
+          const savedAgency = sessionStorage.getItem('pendingAgency')
+          const savedSummons = sessionStorage.getItem('pendingSummons')
+          if (savedAgency) setAgency(savedAgency)
+          if (savedSummons) setSummons(savedSummons)
+          sessionStorage.removeItem('pendingResults')
+          sessionStorage.removeItem('pendingAgency')
+          sessionStorage.removeItem('pendingSummons')
+        } catch(e) { console.log('restore failed', e) }
+      }
     } else if (sessionStorage.getItem('isPaid') === 'true') {
       setIsPaid(true)
     }
@@ -251,6 +266,12 @@ function HomeContent() {
   }
 
   const handleCheckout = async (plan) => {
+    // 保存当前分析结果，付款后恢复
+    if (multiResults.length) {
+      sessionStorage.setItem('pendingResults', JSON.stringify(multiResults))
+      sessionStorage.setItem('pendingAgency', agency)
+      sessionStorage.setItem('pendingSummons', summons)
+    }
     const res = await fetch("/api/checkout", {
       method: "POST",
       headers: {"Content-Type":"application/json"},
