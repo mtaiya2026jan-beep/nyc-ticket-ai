@@ -95,7 +95,6 @@ function HomeContent() {
     if (url.searchParams.get('payment') === 'success') {
       sessionStorage.setItem('isPaid', 'true')
       setIsPaid(true)
-      console.log('payment=success detected, setting isPaid')
       // 恢复付款前的分析结果
       const saved = sessionStorage.getItem('pendingResults')
       if (saved) {
