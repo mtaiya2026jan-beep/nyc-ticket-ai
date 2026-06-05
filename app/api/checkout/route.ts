@@ -5,9 +5,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-05
 
 const PLANS = {
   basic:       { amount: 100,  name: '基础版 · 单次申诉',  description: '生成完整申诉书（Word+PDF）' },
-  pro:         { amount: 9900,  name: '专业版 · 单次申诉',  description: '申诉书+听证手册+优先处理' },
-  monthly:     { amount: 7900,  name: '基础版 · 月订阅',    description: '每月无限次分析' },
-  pro_monthly: { amount: 14900, name: '专业版 · 月订阅',    description: '每月无限次+所有功能' },
+  pro:         { amount: 110,  name: '专业版 · 单次申诉',  description: '申诉书+听证手册+优先处理' },
+  monthly:     { amount: 120,  name: '基础版 · 月订阅',    description: '每月无限次分析' },
+  pro_monthly: { amount: 120, name: '专业版 · 月订阅',    description: '每月无限次+所有功能' },
 }
 
 export async function POST(req: NextRequest) {
