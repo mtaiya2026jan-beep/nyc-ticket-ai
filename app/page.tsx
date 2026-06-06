@@ -28,9 +28,9 @@ type ViolationResult = {
 
 type ScanResult = {
   agency: string
-  summons_number: string
-  hearing_date: string | null
-  business_name: string | null
+  summons_number: string | { value: string; confidence: number }
+  hearing_date: string | { value: string; confidence: number } | null
+  business_name: string | { value: string; confidence: number } | null
   place_of_occurrence: string | null
   violations: { line_item: number; violation_code: string; law_violated: string; description: string }[]
   confidence: number
