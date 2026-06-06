@@ -189,8 +189,8 @@ function HomeContent() {
       if (!res.ok || !data.success) { setScanError(data.error || '识别失败'); return }
       const r: ScanResult = data.result
       if (r.agency) setAgency(r.agency.includes('-') ? r.agency.split('-')[0].trim() : r.agency.trim())
-      if (r.summons_number) setSummons(r.summons_number?.value ?? r.summons_number)
-        if (r.business_name) setBusinessName(r.business_name?.value ?? r.business_name)
+      if (r.summons_number) setSummons(typeof r.summons_number === "object" ? (r.summons_number as any).value : r.summons_number)
+        if (r.business_name) setBusinessName(r.business_name ? (typeof r.business_name === "object" ? (r.business_name as any).value : r.business_name) : null)
         if (r.place_of_occurrence) setPlaceOfOccurrence(r.place_of_occurrence)
       if (r.hearing_date) {
         // convert to YYYY-MM-DD for input storage
