@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { exportAppealAsDocx, exportAppealAsPdf } from "@/lib/exportAppeal"
 import { createClient } from '@supabase/supabase-js'
+import AuthModal from './components/AuthModal'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -438,6 +439,7 @@ const [user, setUser] = useState<any>(null)
 
   return (
     <div style={{display:'flex', height:'100vh', overflow:'hidden'}}>
+      {showAuth && <AuthModal onClose={()=>setShowAuth(false)} onSuccess={(u)=>setUser(u)} />}
       {/* ===== 问卷 Modal ===== */}
       {showQuestionnaire && (() => {
         const violationCodes = scannedViolations.map((v: any) => v.violation_code)
@@ -635,7 +637,7 @@ const [user, setUser] = useState<any>(null)
       <div style={{width:220, minWidth:220, background:'var(--bg2)', borderRight:'1px solid var(--border)', display:'flex', flexDirection:'column', padding:'20px 0'}}>
         <div style={{padding:'0 20px 20px', borderBottom:'1px solid var(--border)', marginBottom:16}}>
           <div style={{fontFamily:'Syne', fontWeight:800, fontSize:15, color:'var(--accent)'}}>NYC Ticket AI</div>
-          <div style={{fontFamily:'DM Mono', fontSize:9, color:'var(--text3)', letterSpacing:'0.12em', textTransform:'uppercase', marginTop:3}}>POWERED BY SOPHIA OS</div>
+          <div style={{fontFamily:'DM Mono', fontSize:9, color:'var(--text3)', letterSpacing:'0.12em', textTransform:'uppercase', marginTop:3}}>POWERED BY SOPHIA OS</div><button onClick={()=>setShowAuth(true)} style={{background:"none",border:"1px solid var(--border)",color:"var(--text)",padding:"6px 14px",borderRadius:8,cursor:"pointer",fontSize:13}}>{user ? user.email : "登录"}</button>
         </div>
         <div style={{padding:'0 12px', marginBottom:20}}>
           <div style={{fontFamily:'DM Mono', fontSize:9, color:'var(--text3)', letterSpacing:'0.1em', textTransform:'uppercase', padding:'0 8px', marginBottom:6}}>主功能</div>
