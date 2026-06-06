@@ -1,6 +1,12 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import { exportAppealAsDocx, exportAppealAsPdf } from "@/lib/exportAppeal"
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 type ViolationResult = {
   violation_code: string
@@ -68,6 +74,11 @@ function toInputDate(dateStr: string): string {
 }
 
 function HomeContent() {
+const [user, setUser] = useState<any>(null)
+  const [showAuth, setShowAuth] = useState(false)
+  const [authEmail, setAuthEmail] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authMode, setAuthMode] = useState<'login'|'register'>('login')
   const [tab, setTab] = useState<'analyze'|'dashboard'|'pricing'>('analyze')
   const [agency, setAgency] = useState('')
   const [code, setCode] = useState('')
