@@ -194,7 +194,7 @@ function HomeContent() {
         if (r.place_of_occurrence) setPlaceOfOccurrence(r.place_of_occurrence)
       if (r.hearing_date) {
         // convert to YYYY-MM-DD for input storage
-        setHearingDate(toInputDate(r.hearing_date?.value ?? r.hearing_date))
+        setHearingDate(toInputDate(r.hearing_date ? (typeof r.hearing_date === "object" ? (r.hearing_date as any).value : r.hearing_date) : null))
       }
       if (r.violations?.length > 0) {
         setCode(r.violations[0].violation_code)
