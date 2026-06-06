@@ -105,7 +105,7 @@ function HomeContent() {
           const savedSummons = sessionStorage.getItem('pendingSummons')
           if (savedAgency) setAgency(savedAgency)
           if (savedSummons) setSummons(savedSummons)
-          sessionStorage.removeItem('pendingResults')
+          const savedViolations = sessionStorage.getItem('pendingViolations'); if (savedViolations) { try { setScannedViolations(JSON.parse(savedViolations)); sessionStorage.removeItem('pendingViolations') } catch(e) {} }; sessionStorage.removeItem('pendingResults')
           sessionStorage.removeItem('pendingAgency')
           sessionStorage.removeItem('pendingSummons')
         } catch(e) { console.log('restore failed', e) }
@@ -267,7 +267,7 @@ function HomeContent() {
   const handleCheckout = async (plan) => {
     // 保存当前分析结果，付款后恢复
     if (multiResults.length) {
-      sessionStorage.setItem('pendingResults', JSON.stringify(multiResults))
+      sessionStorage.setItem('pendingResults', JSON.stringify(multiResults)); if (scannedViolations.length) sessionStorage.setItem('pendingViolations', JSON.stringify(scannedViolations))
       sessionStorage.setItem('pendingAgency', agency)
       sessionStorage.setItem('pendingSummons', summons)
     }
