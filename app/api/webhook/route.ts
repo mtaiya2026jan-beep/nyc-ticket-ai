@@ -30,6 +30,24 @@ export async function POST(req: NextRequest) {
       paid_at: new Date().toISOString(),
     })
     console.log('付款成功已记录:', session.id)
+
+    // 从 pending_appeals 取出申诉内容，存入正式 appeals 表
+    const { data: pending } = await supabase
+      .from('pending_appeals')
+      .select('*')
+      .eq('session_id', session.id)
+      .single()
+
+    if (pending) {
+      await supabase.from('appeals').insert({
+        user_id: pending.user_id || null,
+        session_id: session.id,
+        summons_number: pending.summons_number || null,
+        appeal_text: pending.appeal_text,
+        created_at: new Date().toISOString(),
+      })
+      await supabase.from('pending_appeals').delete().eq('session_id', session.id)
+    }
   }
 
   return NextResponse.json({ received: true })

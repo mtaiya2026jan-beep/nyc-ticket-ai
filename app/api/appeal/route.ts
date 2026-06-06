@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export async function POST(req: NextRequest) {
   try {
@@ -141,6 +147,16 @@ ${evidenceCapability.length > 0 ? `\n当事人可提供的证据能力：${evide
     if (!response.ok) throw new Error(data.error?.message || '生成失败')
 
     const content = data.choices[0].message.content
+    // 存入 pending_appeals 供付款后关联
+    if (storeHistory?.sessionId && summons_number) {
+      await supabase.from('pending_appeals').upsert({
+        session_id: storeHistory.sessionId,
+        summons_number: summons_number || '',
+        appeal_text: content,
+        user_id: storeHistory.userId || null,
+      }, { onConflict: 'session_id' })
+    }
+
     return NextResponse.json({ success: true, content })
 
   } catch (err: any) {
