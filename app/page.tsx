@@ -76,11 +76,30 @@ function toInputDate(dateStr: string): string {
 
 function HomeContent() {
 const [user, setUser] = useState<any>(null)
+  const [appeals, setAppeals] = useState<any[]>([])
+  const [loadingAppeals, setLoadingAppeals] = useState(false)
+
+  const loadAppeals = async (u: any) => {
+    if (!u) return
+    setLoadingAppeals(true)
+    const { createClient } = await import('@supabase/supabase-js')
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    const { data } = await supabase
+      .from('appeals')
+      .select('*')
+      .eq('user_id', u.id)
+      .order('created_at', { ascending: false })
+    setAppeals(data || [])
+    setLoadingAppeals(false)
+  }
   const [showAuth, setShowAuth] = useState(false)
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
   const [authMode, setAuthMode] = useState<'login'|'register'>('login')
-  const [tab, setTab] = useState<'analyze'|'dashboard'|'pricing'>('analyze')
+  const [tab, setTab] = useState<'analyze'|'dashboard'|'pricing'|'history'>('analyze')
   const [agency, setAgency] = useState('')
   const [code, setCode] = useState('')
   const [summons, setSummons] = useState('')
@@ -439,7 +458,7 @@ const [user, setUser] = useState<any>(null)
 
   return (
     <div style={{display:'flex', height:'100vh', overflow:'hidden'}}>
-      {showAuth && <AuthModal onClose={()=>setShowAuth(false)} onSuccess={(u)=>setUser(u)} />}
+      {showAuth && <AuthModal onClose={()=>setShowAuth(false)} onSuccess={(u)=>{setUser(u);loadAppeals(u)}} />}
       {/* ===== 问卷 Modal ===== */}
       {showQuestionnaire && (() => {
         const violationCodes = scannedViolations.map((v: any) => v.violation_code)
@@ -658,6 +677,13 @@ const [user, setUser] = useState<any>(null)
           ))}
         </div>
         <div style={{marginTop:'auto', padding:16, borderTop:'1px solid var(--border)'}}>
+        {user && (
+          <div onClick={()=>{loadAppeals(user);setTab('history')}} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',borderRadius:8,cursor:'pointer',fontSize:13,marginBottom:8,color:'var(--text2)',border:'1px solid transparent'}} onMouseEnter={e=>(e.currentTarget.style.background='var(--surface2)')} onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
+            <i className="ti ti-history" style={{fontSize:15}} aria-hidden />
+            <span>我的申诉记录</span>
+            {appeals.length > 0 && <span style={{marginLeft:'auto',background:'var(--accent)',color:'#000',fontSize:9,fontWeight:700,padding:'1px 6px',borderRadius:20}}>{appeals.length}</span>}
+          </div>
+        )}
           <div style={{background:'rgba(232,255,71,0.08)', border:'1px solid rgba(232,255,71,0.2)', borderRadius:8, padding:'8px 10px'}}>
             <div style={{color:'var(--accent)', fontWeight:500, fontSize:11}}>⚡ 专业版 Pro</div>
             <div style={{color:'var(--text3)', fontSize:10, marginTop:2}}>$99/月 · 无限分析次数</div>
@@ -677,6 +703,38 @@ const [user, setUser] = useState<any>(null)
           </div>
         </div>
 
+        {tab==='history' && (
+          <div style={{padding:32,maxWidth:800,margin:'0 auto',width:'100%'}}>
+            <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:24}}>
+              <i className="ti ti-history" style={{fontSize:22,color:'var(--accent)'}} aria-hidden />
+              <h2 style={{fontSize:20,fontWeight:700,color:'var(--text)'}}>我的申诉记录</h2>
+              <button onClick={()=>loadAppeals(user)} style={{marginLeft:'auto',background:'none',border:'1px solid var(--border)',color:'var(--text2)',padding:'4px 12px',borderRadius:6,cursor:'pointer',fontSize:12}}>刷新</button>
+            </div>
+            {loadingAppeals ? (
+              <div style={{color:'var(--text3)',textAlign:'center',padding:40}}>加载中...</div>
+            ) : appeals.length === 0 ? (
+              <div style={{color:'var(--text3)',textAlign:'center',padding:40}}>
+                <i className="ti ti-file-off" style={{fontSize:40,display:'block',marginBottom:12}} aria-hidden />
+                暂无申诉记录，付款后将自动保存
+              </div>
+            ) : (
+              <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                {appeals.map((a:any)=>(
+                  <div key={a.id} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,padding:20}}>
+                    <div style={{display:'flex',alignItems:'flex-start',gap:12}}>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:13,fontWeight:600,color:'var(--text)',marginBottom:4}}>传票号：{a.summons_number || '未知'}</div>
+                        <div style={{fontSize:11,color:'var(--text3)'}}>{new Date(a.created_at).toLocaleString('zh-CN')}</div>
+                      </div>
+                      <button onClick={()=>{const blob=new Blob([a.appeal_text],{type:'text/plain'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='申诉书_'+(a.summons_number||a.id)+'.txt';link.click();URL.revokeObjectURL(url)}} style={{background:'var(--accent)',color:'#000',border:'none',borderRadius:8,padding:'8px 16px',cursor:'pointer',fontSize:12,fontWeight:600,whiteSpace:'nowrap'}}>重新下载</button>
+                    </div>
+                    <div style={{marginTop:12,fontSize:12,color:'var(--text2)',background:'var(--surface2)',borderRadius:8,padding:12,maxHeight:80,overflow:'hidden',lineHeight:1.6}}>{(a.appeal_text||'').slice(0,200)}...</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {tab==='analyze' && (
           <div style={{flex:1, overflow:'hidden', display:'flex', gap:20, padding:24}}>
             {/* Left */}
