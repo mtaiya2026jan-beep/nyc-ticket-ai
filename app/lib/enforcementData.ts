@@ -51,7 +51,7 @@ export function detectClusterRisk(data) {
     const t = r.violation_description || r.violation_code || '未知'
     typeCounts[t] = (typeCounts[t] || 0) + 1
   })
-  const riskTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).slice(0, 5)
+  const riskTypes = Object.entries(typeCounts).sort((a, b) => (b[1] as number) - (a[1] as number)).slice(0, 5)
   return {
     hasRisk: recent.length >= 3,
     count: recent.length,
