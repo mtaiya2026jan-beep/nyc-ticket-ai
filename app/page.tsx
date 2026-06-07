@@ -1021,6 +1021,10 @@ const parseFineRange = (s: string) => {
                       </li>
                     ))}
                   </ul>
+              <button
+                onClick={()=>handleCheckout(p.name==='单次申诉'?'single':p.name==='单店年费'?'solo_annual':'biz_annual')}
+                style={{width:'100%',marginTop:16,padding:'10px',borderRadius:8,border:'none',background:'var(--accent)',color:'#000',fontSize:13,fontWeight:700,cursor:'pointer'}}
+              >{p.name==='单次申诉'?'立即购买 $49':p.name==='单店年费'?'订阅 $299/年':'订阅 $999/年'}</button>
                 </div>
               ))}
             </div>
