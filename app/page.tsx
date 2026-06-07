@@ -297,7 +297,7 @@ const [user, setUser] = useState<any>(null)
   }
 
   const handleCheckout = async (plan) => {
-    if (!user) { setShowAuth(true); return }
+    if (!user) { sessionStorage.setItem('pendingPlan', plan); setShowAuth(true); return }
     // 保存当前分析结果，付款后恢复
     if (multiResults.length) {
       sessionStorage.setItem('pendingResults', JSON.stringify(multiResults)); if (scannedViolations.length) sessionStorage.setItem('pendingViolations', JSON.stringify(scannedViolations))
@@ -460,7 +460,7 @@ const [user, setUser] = useState<any>(null)
 
   return (
     <div style={{display:'flex', height:'100vh', overflow:'hidden'}}>
-      {showAuth && <AuthModal onClose={()=>setShowAuth(false)} onSuccess={(u)=>{setUser(u);loadAppeals(u)}} />}
+      {showAuth && <AuthModal onClose={()=>setShowAuth(false)} onSuccess={(u)=>{setUser(u);loadAppeals(u);const p=sessionStorage.getItem('pendingPlan');if(p){sessionStorage.removeItem('pendingPlan');handleCheckout(p)}}} />}
       {/* ===== 问卷 Modal ===== */}
       {showQuestionnaire && (() => {
         const violationCodes = scannedViolations.map((v: any) => v.violation_code)
