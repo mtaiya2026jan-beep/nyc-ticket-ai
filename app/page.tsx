@@ -297,6 +297,7 @@ const [user, setUser] = useState<any>(null)
   }
 
   const handleCheckout = async (plan) => {
+    if (!user) { setShowAuth(true); return }
     // 保存当前分析结果，付款后恢复
     if (multiResults.length) {
       sessionStorage.setItem('pendingResults', JSON.stringify(multiResults)); if (scannedViolations.length) sessionStorage.setItem('pendingViolations', JSON.stringify(scannedViolations))
