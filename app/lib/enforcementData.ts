@@ -34,7 +34,7 @@ export function analyzeTimePattern(data) {
     byDayOfWeek[day] = (byDayOfWeek[day] || 0) + 1
   }
   const entries = Object.entries(byDayOfWeek)
-  const peakDay = entries.length > 0 ? entries.sort((a, b) => b[1] - a[1])[0][0] : 'Mon'
+  const peakDay = entries.length > 0 ? entries.sort((a, b) => (b[1] as number) - (a[1] as number))[0][0] : 'Mon'
   return { byDayOfWeek, peakDay }
 }
 
