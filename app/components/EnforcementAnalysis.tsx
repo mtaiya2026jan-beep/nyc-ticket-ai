@@ -118,7 +118,7 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
             style={{
               padding: '8px 24px', borderRadius: 8, border: 'none',
               background: loading ? 'var(--border)' : 'var(--accent)',
-              color: '#fff', fontSize: 13, fontWeight: 600,
+              color: loading ? 'var(--text3)' : '#000', fontSize: 13, fontWeight: 600,
               cursor: loading ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
             }}
           >
