@@ -99,7 +99,7 @@ const [user, setUser] = useState<any>(null)
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
   const [authMode, setAuthMode] = useState<'login'|'register'>('login')
-  const [tab, setTab] = useState<'analyze'|'dashboard'|'pricing'|'history'>('analyze')
+  const [tab, setTab] = useState<'analyze'|'dashboard'|'pricing'|'history'|'stores'>('analyze')
   const [agency, setAgency] = useState('')
   const [code, setCode] = useState('')
   const [summons, setSummons] = useState('')
@@ -703,6 +703,7 @@ const [user, setUser] = useState<any>(null)
           </div>
         </div>
 
+        {tab==='stores' && user && (<StoreManager user={user} session={null} />)}
         {tab==='history' && (
           <div style={{padding:32,maxWidth:800,margin:'0 auto',width:'100%'}}>
             <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:24}}>
@@ -1040,6 +1041,136 @@ const parseFineRange = (s: string) => {
   )
 }
 
+
+function StoreManager({ user, session }: { user: any, session: any }) {
+  const [stores, setStores] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm] = useState({ name: '', address: '', borough: 'Manhattan', zip: '', phone: '' })
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState<string|null>(null)
+
+  const token = session?.access_token
+
+  useEffect(() => { loadStores() }, [])
+
+  async function loadStores() {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/stores', { headers: { authorization: 'Bearer ' + token } })
+      const data = await res.json()
+      setStores(data.stores || [])
+    } catch {}
+    setLoading(false)
+  }
+
+  async function addStore() {
+    if (!form.name || !form.address) return
+    setSaving(true)
+    try {
+      const res = await fetch('/api/stores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', authorization: 'Bearer ' + token },
+        body: JSON.stringify(form)
+      })
+      if (res.ok) { setShowAdd(false); setForm({ name: '', address: '', borough: 'Manhattan', zip: '', phone: '' }); loadStores() }
+    } catch {}
+    setSaving(false)
+  }
+
+  async function deleteStore(id: string) {
+    if (!confirm('确认删除该门店？')) return
+    setDeleting(id)
+    try {
+      await fetch('/api/stores', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', authorization: 'Bearer ' + token },
+        body: JSON.stringify({ id })
+      })
+      loadStores()
+    } catch {}
+    setDeleting(null)
+  }
+
+  const boroughs = ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island']
+
+  return (
+    <div style={{padding:24, maxWidth:800, margin:'0 auto'}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24}}>
+        <div>
+          <div style={{fontSize:20, fontWeight:700, color:'var(--text)'}}>🏪 门店管理</div>
+          <div style={{fontSize:12, color:'var(--text3)', marginTop:4}}>管理你名下所有门店的罚单申诉</div>
+        </div>
+        <button onClick={()=>setShowAdd(true)} style={{background:'var(--accent)',color:'#000',border:'none',borderRadius:8,padding:'8px 18px',cursor:'pointer',fontSize:13,fontWeight:600}}>+ 添加门店</button>
+      </div>
+
+      {showAdd && (
+        <div style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:12,padding:20,marginBottom:20}}>
+          <div style={{fontSize:14,fontWeight:600,marginBottom:16,color:'var(--text)'}}>添加新门店</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            <div>
+              <label style={{fontSize:11,color:'var(--text3)',display:'block',marginBottom:4}}>门店名称 *</label>
+              <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="如：肖记餐厅 Brooklyn店" style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}} />
+            </div>
+            <div>
+              <label style={{fontSize:11,color:'var(--text3)',display:'block',marginBottom:4}}>电话</label>
+              <input value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="718-xxx-xxxx" style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}} />
+            </div>
+            <div style={{gridColumn:'1/-1'}}>
+              <label style={{fontSize:11,color:'var(--text3)',display:'block',marginBottom:4}}>门店地址 *</label>
+              <input value={form.address} onChange={e=>setForm({...form,address:e.target.value})} placeholder="123 Main St" style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}} />
+            </div>
+            <div>
+              <label style={{fontSize:11,color:'var(--text3)',display:'block',marginBottom:4}}>Borough</label>
+              <select value={form.borough} onChange={e=>setForm({...form,borough:e.target.value})} style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}}>
+                {boroughs.map(b=><option key={b}>{b}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{fontSize:11,color:'var(--text3)',display:'block',marginBottom:4}}>ZIP Code</label>
+              <input value={form.zip} onChange={e=>setForm({...form,zip:e.target.value})} placeholder="10001" style={{width:'100%',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box'}} />
+            </div>
+          </div>
+          <div style={{display:'flex',gap:8,marginTop:16}}>
+            <button onClick={addStore} disabled={saving} style={{background:'var(--accent)',color:'#000',border:'none',borderRadius:8,padding:'8px 20px',cursor:'pointer',fontSize:13,fontWeight:600}}>{saving?'保存中...':'保存门店'}</button>
+            <button onClick={()=>setShowAdd(false)} style={{background:'var(--surface2)',color:'var(--text)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 16px',cursor:'pointer',fontSize:13}}>取消</button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{textAlign:'center',color:'var(--text3)',padding:40}}>加载中...</div>
+      ) : stores.length === 0 ? (
+        <div style={{textAlign:'center',color:'var(--text3)',padding:40,background:'var(--bg2)',borderRadius:12,border:'1px dashed var(--border)'}}>
+          <div style={{fontSize:32,marginBottom:8}}>🏪</div>
+          <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>还没有门店</div>
+          <div style={{fontSize:12}}>点击「添加门店」开始管理你的连锁申诉</div>
+        </div>
+      ) : (
+        <div style={{display:'grid',gap:12}}>
+          {stores.map((store: any) => (
+            <div key={store.id} style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:12,padding:16,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div>
+                <div style={{fontSize:15,fontWeight:600,color:'var(--text)',marginBottom:4}}>🏪 {store.name}</div>
+                <div style={{fontSize:12,color:'var(--text3)'}}>{store.address}{store.borough ? `, ${store.borough}` : ''}{store.zip ? ` ${store.zip}` : ''}</div>
+                {store.phone && <div style={{fontSize:12,color:'var(--text3)',marginTop:2}}>📞 {store.phone}</div>}
+                <div style={{fontSize:11,color:'var(--accent)',marginTop:6,fontWeight:600}}>
+                  {store.appeals?.[0]?.count || 0} 条申诉记录
+                </div>
+              </div>
+              <button onClick={()=>deleteStore(store.id)} disabled={deleting===store.id} style={{background:'transparent',color:'var(--text3)',border:'1px solid var(--border)',borderRadius:8,padding:'6px 12px',cursor:'pointer',fontSize:12}}>
+                {deleting===store.id?'删除中...':'删除'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Home() {
   return <HomeContent />
 }
+
+// ========== 以下内容由机构版升级注入 ==========
