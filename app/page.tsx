@@ -445,7 +445,7 @@ const [user, setUser] = useState<any>(null)
           </div>
         </div>
       </div>
-<div style={{display:"flex",gap:8,paddingTop:12,borderTop:"1px solid var(--border)"}}><button onClick={()=>handleCheckout("basic")} style={{flex:1,padding:"9px",borderRadius:8,border:"none",background:"var(--accent)",color:"#000",fontFamily:"Inter",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6,fontWeight:700}}><i className="ti ti-credit-card" aria-hidden /> $1 立即解锁申诉书</button><button onClick={()=>handleCheckout("pro")} style={{flex:1,padding:"9px",borderRadius:8,border:"1px solid rgba(232,255,71,0.25)",background:"rgba(232,255,71,0.08)",color:"var(--accent)",fontFamily:"Inter",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><i className="ti ti-star" aria-hidden /> 专业版 $1.1</button></div>
+<div style={{display:"flex",gap:8,paddingTop:12,borderTop:"1px solid var(--border)"}}><button onClick={()=>handleCheckout("single")} style={{flex:1,padding:"9px",borderRadius:8,border:"none",background:"var(--accent)",color:"#000",fontFamily:"Inter",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6,fontWeight:700}}><i className="ti ti-credit-card" aria-hidden /> $49 立即解锁申诉书</button><button onClick={()=>handleCheckout("solo_annual")} style={{flex:1,padding:"9px",borderRadius:8,border:"1px solid rgba(232,255,71,0.25)",background:"rgba(232,255,71,0.08)",color:"var(--accent)",fontFamily:"Inter",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><i className="ti ti-star" aria-hidden /> 专业版 $1.1</button></div>
       <div style={{display:'flex', gap:8, paddingTop:12, borderTop:'1px solid var(--border)'}}><button onClick={isPaid ? runFullAppeal : () => alert('请先完成支付后再生成申诉书')} disabled={!isPaid} style={{flex:2, padding:'9px', borderRadius:8, border:'1px solid rgba(232,255,71,0.25)', background:'rgba(232,255,71,0.08)', color:'var(--accent)', fontFamily:'Inter', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6}}><i className="ti ti-file-text" aria-hidden />生成完整申诉书（所有违规项）</button>
         {[{icon:'file-text',label:'申诉材料',primary:true,mode:'appeal'},{icon:'list',label:'证据清单',mode:'evidence'},{icon:'calendar',label:'整改计划',mode:'plan'}].map(btn=>(
           <button key={btn.label} onClick={()=>runMode(btn.mode, vc, desc)} style={{flex:1, padding:'9px', borderRadius:8, border:btn.primary?'1px solid rgba(232,255,71,0.25)':'1px solid var(--border2)', background:btn.primary?'rgba(232,255,71,0.08)':'var(--bg3)', color:btn.primary?'var(--accent)':'var(--text)', fontFamily:'Inter', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6}}>
@@ -1002,9 +1002,9 @@ const parseFineRange = (s: string) => {
             </div>
             <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16}}>
               {[
-                {name:'入门版',price:'$29',per:'/月',vs:'传统 $500+/次',features:['每月10次','DOHMH覆盖','历史案例','处理建议']},
-                {name:'专业版 Pro',price:'$99',per:'/月',vs:'传统 $1,500+/次',featured:true,features:['无限次分析','全机构覆盖','220万条数据','多违规并析','PDF识别','申诉材料生成']},
-                {name:'机构版',price:'$299',per:'/月',vs:'传统律所 $3,000+',features:['Pro全功能','团队管理','API接入','白标','专属经理']},
+                {name:'单次申诉',price:'$49',per:'/次',vs:'传统律所 $500+',features:['AI生成完整申诉书','Word+PDF下载','历史胜率参考','处理建议']},
+                {name:'单店年费',price:'$299',per:'/年',vs:'传统律所 $3,000+',featured:true,features:['全年无限申诉','合规提醒','申诉期倒计时','历史记录查询']},
+                {name:'机构年费',price:'$999',per:'/年',vs:'传统律所 $10,000+',features:['单店全部功能','最多5家门店','多店风险预警','合规仪表盘','跨店规律分析']},
               ].map(p=>(
                 <div key={p.name} style={{background:p.featured?'rgba(232,255,71,0.04)':'var(--bg3)', border:p.featured?'1px solid rgba(232,255,71,0.35)':'1px solid var(--border)', borderRadius:12, padding:20, position:'relative'}}>
                   {p.featured && <div style={{position:'absolute', top:-12, left:'50%', transform:'translateX(-50%)', background:'var(--accent)', color:'#000', fontSize:10, fontWeight:700, padding:'3px 12px', borderRadius:20, whiteSpace:'nowrap'}}>最受欢迎</div>}
