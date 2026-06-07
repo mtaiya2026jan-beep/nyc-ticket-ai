@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { exportAppealAsDocx, exportAppealAsPdf } from "@/lib/exportAppeal"
 import { createClient } from '@supabase/supabase-js'
 import AuthModal from './components/AuthModal'
+import EnforcementAnalysis from './components/EnforcementAnalysis'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -99,7 +100,7 @@ const [user, setUser] = useState<any>(null)
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
   const [authMode, setAuthMode] = useState<'login'|'register'>('login')
-  const [tab, setTab] = useState<'analyze'|'dashboard'|'pricing'|'history'|'stores'>('analyze')
+  const [tab, setTab] = useState<'analyze'|'dashboard'|'pricing'|'history'|'stores'|'enforcement'>('analyze')
   const [agency, setAgency] = useState('')
   const [code, setCode] = useState('')
   const [summons, setSummons] = useState('')
@@ -685,6 +686,7 @@ const [user, setUser] = useState<any>(null)
           </div>
         )}
             <div onClick={()=>setTab("stores")} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,cursor:"pointer",fontSize:13,marginBottom:8,color:tab==="stores"?"var(--accent)":"var(--text2)",border:"1px solid transparent"}} onMouseEnter={e=>(e.currentTarget.style.background="var(--surface2)")} onMouseLeave={e=>(e.currentTarget.style.background="transparent")}><i className="ti ti-building-store" style={{fontSize:15}} aria-hidden /><span>门店管理</span></div>
+            <div onClick={()=>setTab("enforcement")} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,cursor:"pointer",fontSize:13,marginBottom:8,color:tab==="enforcement"?"var(--accent)":"var(--text2)",border:"1px solid transparent"}} onMouseEnter={e=>(e.currentTarget.style.background="var(--surface2)")} onMouseLeave={e=>(e.currentTarget.style.background="transparent")}><i className="ti ti-chart-bar" style={{fontSize:15}} aria-hidden /><span>执法规律</span></div>
           <div style={{background:'rgba(232,255,71,0.08)', border:'1px solid rgba(232,255,71,0.2)', borderRadius:8, padding:'8px 10px'}}>
             <div style={{color:'var(--accent)', fontWeight:500, fontSize:11}}>⚡ 专业版 Pro</div>
             <div style={{color:'var(--text3)', fontSize:10, marginTop:2}}>$99/月 · 无限分析次数</div>
@@ -705,6 +707,7 @@ const [user, setUser] = useState<any>(null)
         </div>
 
         {tab==='stores' && user && (<StoreManager user={user} session={null} />)}
+          {tab==='enforcement' && (<EnforcementAnalysis user={user} />)}
         {tab==='history' && (
           <div style={{padding:32,maxWidth:800,margin:'0 auto',width:'100%'}}>
             <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:24}}>
