@@ -687,7 +687,7 @@ const [user, setUser] = useState<any>(null)
         )}
             <div onClick={()=>setTab("stores")} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,cursor:"pointer",fontSize:13,marginBottom:8,color:tab==="stores"?"var(--accent)":"var(--text2)",border:"1px solid transparent"}} onMouseEnter={e=>(e.currentTarget.style.background="var(--surface2)")} onMouseLeave={e=>(e.currentTarget.style.background="transparent")}><i className="ti ti-building-store" style={{fontSize:15}} aria-hidden /><span>门店管理</span></div>
             <div onClick={()=>setTab("enforcement")} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,cursor:"pointer",fontSize:13,marginBottom:8,color:tab==="enforcement"?"var(--accent)":"var(--text2)",border:"1px solid transparent"}} onMouseEnter={e=>(e.currentTarget.style.background="var(--surface2)")} onMouseLeave={e=>(e.currentTarget.style.background="transparent")}><i className="ti ti-chart-bar" style={{fontSize:15}} aria-hidden /><span>执法规律</span></div>
-          <div style={{background:'rgba(232,255,71,0.08)', border:'1px solid rgba(232,255,71,0.2)', borderRadius:8, padding:'8px 10px'}}>
+          <div onClick={()=>setTab('pricing')} style={{background:'rgba(232,255,71,0.08)', border:'1px solid rgba(232,255,71,0.2)', borderRadius:8, padding:'8px 10px', cursor:'pointer'}}>
             <div style={{color:'var(--accent)', fontWeight:500, fontSize:11}}>⚡ 专业版 Pro</div>
             <div style={{color:'var(--text3)', fontSize:10, marginTop:2}}>$99/月 · 无限分析次数</div>
           </div>
