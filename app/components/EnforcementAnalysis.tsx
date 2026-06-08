@@ -5,6 +5,7 @@ import {
   fetchRestaurantInspections,
   analyzeTimePattern,
   detectClusterRisk,
+  getDohmhTopViolations,
 } from '@/lib/enforcementData'
 
 const BOROUGHS = ['MANHATTAN', 'BROOKLYN', 'QUEENS', 'BRONX', 'STATEN ISLAND']
@@ -18,6 +19,7 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
   const [freqData, setFreqData] = useState<any[]>([])
   const [inspData, setInspData] = useState<any[]>([])
   const [timePattern, setTimePattern] = useState<any>(null)
+  const [dohmhViolations, setDohmhViolations] = useState<any[]>([])
   const [clusterRisk, setClusterRisk] = useState<any>(null)
   const [error, setError] = useState('')
 
@@ -25,12 +27,14 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
     setLoading(true)
     setError('')
     try {
-      const [freq, insp] = await Promise.all([
+      const [freq, insp, dohmhV] = await Promise.all([
         fetchEnforcementFrequency(borough, violationType || undefined),
         address ? fetchRestaurantInspections(address) : Promise.resolve([]),
+      getDohmhTopViolations(borough),
       ])
       setFreqData(freq)
       setInspData(insp)
+      setDohmhViolations(dohmhV || [])
       setTimePattern(analyzeTimePattern(freq))
       setClusterRisk(detectClusterRisk(freq))
     } catch (e: any) {
@@ -214,9 +218,9 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
             </div>
             {(() => {
               const counts: Record<string, number> = {}
-              freqData.forEach((v: any) => {
-                const t = v.violation_type || '未知'
-                counts[t] = (counts[t] || 0) + 1
+              dohmhViolations.forEach((v: any) => {
+                const t = v.description || v.code || '未知'
+                counts[t] = (counts[t] || 0) + (v.count || 1)
               })
               const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10)
               const max = sorted[0]?.[1] || 1

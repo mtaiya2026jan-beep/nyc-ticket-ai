@@ -87,3 +87,44 @@ export function detectClusterRisk(data: any[]) {
     message: recent.length >= 3 ? '近30天发现 ' + recent.length + ' 次执法，存在集群风险' : null,
   }
 }
+
+// =============================================
+// DOHMH 餐厅卫生 Top 10 违规分析
+// =============================================
+export async function getDohmhTopViolations(
+  boro?: string,
+  days: number = 730
+): Promise<{ code: string; description: string; count: number }[]> {
+  const since = new Date()
+  since.setDate(since.getDate() - days)
+  const sinceStr = since.toISOString().split('T')[0]
+
+  let query = supabase
+    .from('dohmh_inspections')
+    .select('violation_code, violation_description')
+    .not('violation_code', 'is', null)
+    .gte('inspection_date', sinceStr)
+    .lte('inspection_date', new Date().toISOString().split('T')[0])
+    .limit(10000)
+
+  if (boro) query = query.eq('boro', boro.toUpperCase())
+
+  const { data, error } = await query
+  if (error || !data) return []
+
+  const map = new Map<string, { description: string; count: number }>()
+  for (const row of data) {
+    const key = row.violation_code!
+    const existing = map.get(key)
+    if (existing) {
+      existing.count++
+    } else {
+      map.set(key, { description: row.violation_description || key, count: 1 })
+    }
+  }
+
+  return [...map.entries()]
+    .map(([code, v]) => ({ code, ...v }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10)
+}
