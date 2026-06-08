@@ -141,7 +141,7 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
             borderRadius: 12, padding: 20,
           }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 16 }}>
-              📅 执法时间分布（近500条）
+              📅 执法时间分布（近2年数据）
             </div>
             {Object.entries(timePattern.byDayOfWeek as Record<string, number>).map(([day, count]) => (
               <div key={day} style={{ marginBottom: 10 }}>
