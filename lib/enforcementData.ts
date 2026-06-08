@@ -53,7 +53,7 @@ export function analyzeTimePattern(data: any[]) {
   for (const row of data) {
     if (!row.violation_date) continue
     const d = new Date(row.violation_date)
-    if (d.getFullYear() < 2000) continue
+    if (d.getFullYear() < 2000 || d > new Date()) continue
     const day = d.toLocaleDateString('en-US', { weekday: 'short' })
     byDayOfWeek[day] = (byDayOfWeek[day] || 0) + 1
   }
