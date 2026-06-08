@@ -123,7 +123,7 @@ export async function getDohmhTopViolations(
     }
   }
 
-  return [...map.entries()]
+  return Array.from(map.entries())
     .map(([code, v]) => ({ code, ...v }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10)
