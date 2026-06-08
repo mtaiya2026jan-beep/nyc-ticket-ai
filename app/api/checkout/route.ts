@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 
-
-const PLANS = {
   single:      { amount: 4900,  name: '单次申诉',  description: '生成完整申诉书（Word+PDF），一次性使用' },
   solo_annual: { amount: 29900, name: '单店年费版', description: '全年无限申诉+合规提醒，1家门店' },
   biz_annual:  { amount: 99900, name: '机构年费版', description: '全年无限申诉+多店联动+风险预警+仪表盘，最多5家门店' },
