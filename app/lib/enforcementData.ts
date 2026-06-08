@@ -21,8 +21,7 @@ export async function fetchEnforcementFrequency(borough: string, violationType: 
     .select('violation_date, charge1_code, charge1_code_description, viol_loc_borough')
     .eq('viol_loc_borough', boro)
     .order('violation_date', { ascending: false })
-    .gte('violation_date', new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
-      .limit(5000)
+    .limit(5000)
 
   if (violationType) {
     query = query.ilike('charge1_code', '%' + violationType + '%')
