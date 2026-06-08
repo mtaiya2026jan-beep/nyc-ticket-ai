@@ -6,11 +6,11 @@ const supabase = createClient(
 )
 
 const BORO_MAP: Record<string, string> = {
-  MANHATTAN: 'Manhattan',
-  BROOKLYN: 'Brooklyn',
-  QUEENS: 'Queens',
-  BRONX: 'Bronx',
-  'STATEN ISLAND': 'Staten Island',
+  MANHATTAN: 'MANHATTAN',
+  BROOKLYN: 'BROOKLYN',
+  QUEENS: 'QUEENS',
+  BRONX: 'BRONX',
+  'STATEN ISLAND': 'STATEN IS',
 }
 
 export async function fetchEnforcementFrequency(borough: string, violationType: string) {
