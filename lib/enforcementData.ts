@@ -26,7 +26,7 @@ export async function fetchEnforcementFrequency(borough: string, violationType: 
     .limit(5000)
 
   if (violationType) {
-    query = query.eq('issuing_agency', violationType)
+    // DOHMH uses separate table, skip OATH filter
   }
 
   const { data, error } = await query
