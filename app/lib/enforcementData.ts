@@ -21,6 +21,7 @@ export async function fetchEnforcementFrequency(borough: string, violationType: 
     .select('violation_date, charge1_code, charge1_code_description, viol_loc_borough')
     .eq('viol_loc_borough', boro)
     .not('violation_date', 'is', null)
+    .lte('violation_date', new Date().toISOString().split('T')[0])
     .order('violation_date', { ascending: false })
     .limit(5000)
 
