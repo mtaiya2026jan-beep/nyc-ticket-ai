@@ -26,7 +26,7 @@ export async function fetchEnforcementFrequency(borough: string, violationType: 
     .limit(5000)
 
   if (violationType) {
-    query = query.ilike('charge1_code', '%' + violationType + '%')
+    query = query.eq('issuing_agency', violationType)
   }
 
   const { data, error } = await query
