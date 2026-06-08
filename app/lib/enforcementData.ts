@@ -103,9 +103,7 @@ export async function getDohmhTopViolations(
     .from('dohmh_inspections')
     .select('violation_code, violation_description')
     .not('violation_code', 'is', null)
-    .gte('inspection_date', sinceStr)
-    .lte('inspection_date', new Date().toISOString().split('T')[0])
-    .limit(10000)
+    .limit(100000)
 
   if (boro) query = query.eq('boro', boro.toUpperCase())
 
