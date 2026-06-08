@@ -105,7 +105,7 @@ export async function getDohmhTopViolations(
     .not('violation_code', 'is', null)
     .limit(100000)
 
-  if (boro) query = query.eq('boro', boro.charAt(0).toUpperCase() + boro.slice(1).toLowerCase())
+  if (boro) query = query.eq('boro', ({'MANHATTAN':'Manhattan','BROOKLYN':'Brooklyn','QUEENS':'Queens','BRONX':'Bronx','STATEN ISLAND':'Staten Island'}[boro] || boro))
 
   const { data, error } = await query
   if (error || !data) return []
