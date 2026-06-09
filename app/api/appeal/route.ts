@@ -108,7 +108,7 @@ ${evidenceFiles.map((f: any, i: number) => `${i+1}. ${f.name}（${f.type}）`).j
 传票号码：${summons_number || '未提供'}
 听证日期：${hearing_date || '待定'}
 商户名称：${business_name || '申诉人'}
-违规地点：${place_of_occurrence || '见罚单'}
+违规地点：${typeof place_of_occurrence === "object" && place_of_occurrence !== null ? Object.values(place_of_occurrence).filter(Boolean).join(", ") : place_of_occurrence || "见罚单"}
 
 违规详情（以下每项必须逐字阅读描述，针对其中每个具体指控逐一反驳）：
 ${violationSummaries}
