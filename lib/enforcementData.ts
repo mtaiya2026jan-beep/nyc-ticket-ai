@@ -31,7 +31,7 @@ export async function fetchEnforcementFrequency(borough: string, violationType?:
     .not('hearing_date', 'is', null)
     .lte('hearing_date', new Date().toISOString().split('T')[0])
     .order('hearing_date', { ascending: false })
-    .limit(5000)
+    .limit(500)
   if (error) throw new Error('fetchEnforcementFrequency error: ' + error.message)
   return data ?? []
 }
