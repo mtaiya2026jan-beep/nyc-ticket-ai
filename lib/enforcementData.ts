@@ -13,10 +13,25 @@ const BORO_MAP: Record<string, string> = {
   'STATEN ISLAND': 'STATEN IS',
 }
 
-export async function fetchEnforcementFrequency(borough: string, violationType: string) {
-  const boro = BORO_MAP[borough] || 'Manhattan'
+const DOB_BORO_MAP: Record<string, string> = {
+  MANHATTAN: '1',
+  BRONX: '2',
+  BROOKLYN: '3',
+  QUEENS: '4',
+  'STATEN ISLAND': '5',
+}
 
-  let query = supabase
+const DOHMH_BORO_MAP: Record<string, string> = {
+  MANHATTAN: 'Manhattan',
+  BROOKLYN: 'Brooklyn',
+  QUEENS: 'Queens',
+  BRONX: 'Bronx',
+  'STATEN ISLAND': 'Staten Island',
+}
+
+export async function fetchEnforcementFrequency(borough: string, violationType?: string) {
+  const boro = BORO_MAP[borough] || 'MANHATTAN'
+  const { data, error } = await supabase
     .from('oath_violations_slim')
     .select('violation_date, charge1_code, charge1_code_description, viol_loc_borough')
     .eq('viol_loc_borough', boro)
@@ -24,26 +39,18 @@ export async function fetchEnforcementFrequency(borough: string, violationType: 
     .lte('violation_date', new Date().toISOString().split('T')[0])
     .order('violation_date', { ascending: false })
     .limit(5000)
-
-  if (violationType) {
-    // DOHMH uses separate table, skip OATH filter
-  }
-
-  const { data, error } = await query
   if (error) throw new Error('Supabase enforcement query error: ' + error.message)
   return data
 }
 
 export async function fetchRestaurantInspections(address: string) {
   const upper = address.toUpperCase()
-
   const { data, error } = await supabase
     .from('oath_violations_slim')
     .select('violation_date, charge1_code, charge1_code_description, viol_loc_borough, respondent_address')
     .ilike('respondent_address', '%' + upper + '%')
     .order('violation_date', { ascending: false })
     .limit(50)
-
   if (error) throw new Error('Supabase inspections query error: ' + error.message)
   return data
 }
@@ -88,39 +95,99 @@ export function detectClusterRisk(data: any[]) {
   }
 }
 
-// =============================================
-// DOHMH 餐厅卫生 Top 10 违规分析
-// =============================================
+// DOHMH
 export async function getDohmhTopViolations(
-  boro?: string,
-  days: number = 730
+  boro?: string
 ): Promise<{ code: string; description: string; count: number }[]> {
-  const since = new Date()
-  since.setDate(since.getDate() - days)
-  const sinceStr = since.toISOString().split('T')[0]
-
   let query = supabase
     .from('dohmh_inspections')
     .select('violation_code, violation_description')
     .not('violation_code', 'is', null)
     .limit(100000)
-
-  if (boro) query = query.eq('boro', ({'MANHATTAN':'Manhattan','BROOKLYN':'Brooklyn','QUEENS':'Queens','BRONX':'Bronx','STATEN ISLAND':'Staten Island'}[boro] || boro))
-
+  if (boro) query = query.eq('boro', DOHMH_BORO_MAP[boro] || boro)
   const { data, error } = await query
   if (error || !data) return []
-
   const map = new Map<string, { description: string; count: number }>()
   for (const row of data) {
     const key = row.violation_code!
     const existing = map.get(key)
-    if (existing) {
-      existing.count++
-    } else {
-      map.set(key, { description: row.violation_description || key, count: 1 })
-    }
+    if (existing) { existing.count++ }
+    else { map.set(key, { description: row.violation_description || key, count: 1 }) }
   }
+  return Array.from(map.entries())
+    .map(([code, v]) => ({ code, ...v }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10)
+}
 
+// DOB
+export async function getDobTopViolations(
+  boro?: string
+): Promise<{ code: string; description: string; count: number }[]> {
+  let query = supabase
+    .from('dob_ecb_violations')
+    .select('violation_type, description')
+    .limit(100000)
+  if (boro) query = query.eq('boro', DOB_BORO_MAP[boro] || '1')
+  const { data, error } = await query
+  if (error || !data) return []
+  const map = new Map<string, { description: string; count: number }>()
+  for (const row of data) {
+    const key = row.violation_type || '未知'
+    const existing = map.get(key)
+    if (existing) { existing.count++ }
+    else { map.set(key, { description: row.description || key, count: 1 }) }
+  }
+  return Array.from(map.entries())
+    .map(([code, v]) => ({ code, ...v }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10)
+}
+
+// DCA
+export async function getDcaTopViolations(
+  boro?: string
+): Promise<{ code: string; description: string; count: number }[]> {
+  let query = supabase
+    .from('dca_inspections')
+    .select('violation_code, violation_description')
+    .not('violation_code', 'is', null)
+    .limit(100000)
+  if (boro) query = query.eq('borough', DOHMH_BORO_MAP[boro] || boro)
+  const { data, error } = await query
+  if (error || !data) return []
+  const map = new Map<string, { description: string; count: number }>()
+  for (const row of data) {
+    const key = row.violation_code!
+    const existing = map.get(key)
+    if (existing) { existing.count++ }
+    else { map.set(key, { description: row.violation_description || key, count: 1 }) }
+  }
+  return Array.from(map.entries())
+    .map(([code, v]) => ({ code, ...v }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10)
+}
+
+// DSNY
+export async function getDsnyTopViolations(
+  boro?: string
+): Promise<{ code: string; description: string; count: number }[]> {
+  let query = supabase
+    .from('dsny_violations')
+    .select('violation_code, violation_description')
+    .not('violation_code', 'is', null)
+    .limit(100000)
+  if (boro) query = query.eq('violation_location_borough', boro)
+  const { data, error } = await query
+  if (error || !data) return []
+  const map = new Map<string, { description: string; count: number }>()
+  for (const row of data) {
+    const key = row.violation_code!
+    const existing = map.get(key)
+    if (existing) { existing.count++ }
+    else { map.set(key, { description: row.violation_description || key, count: 1 }) }
+  }
   return Array.from(map.entries())
     .map(([code, v]) => ({ code, ...v }))
     .sort((a, b) => b.count - a.count)

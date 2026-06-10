@@ -6,37 +6,53 @@ import {
   analyzeTimePattern,
   detectClusterRisk,
   getDohmhTopViolations,
+  getDobTopViolations,
+  getDcaTopViolations,
+  getDsnyTopViolations,
 } from '@/lib/enforcementData'
 
 const BOROUGHS = ['MANHATTAN', 'BROOKLYN', 'QUEENS', 'BRONX', 'STATEN ISLAND']
-const VIOLATION_TYPES = ['', 'DOHMH', 'DOB', 'DSNY', 'ECB']
+
+const TABS = [
+  { key: 'DOHMH', label: '🍽 卫生 DOHMH', desc: '餐厅食品安全' },
+  { key: 'DOB',   label: '🏗 建筑 DOB',   desc: '建筑施工违规' },
+  { key: 'DCA',   label: '📋 执照 DCA',   desc: '营业执照违规' },
+  { key: 'DSNY',  label: '🗑 环卫 DSNY',  desc: '垃圾环卫违规' },
+]
 
 export default function EnforcementAnalysis({ user }: { user: any }) {
   const [borough, setBorough] = useState('MANHATTAN')
-  const [violationType, setViolationType] = useState('')
+  const [activeTab, setActiveTab] = useState('DOHMH')
   const [address, setAddress] = useState('')
   const [loading, setLoading] = useState(false)
   const [freqData, setFreqData] = useState<any[]>([])
   const [inspData, setInspData] = useState<any[]>([])
   const [timePattern, setTimePattern] = useState<any>(null)
-  const [dohmhViolations, setDohmhViolations] = useState<any[]>([])
+  const [topViolations, setTopViolations] = useState<any[]>([])
   const [clusterRisk, setClusterRisk] = useState<any>(null)
   const [error, setError] = useState('')
 
   async function runAnalysis() {
     setLoading(true)
     setError('')
+    setTimePattern(null)
     try {
-      const [freq, insp, dohmhV] = await Promise.all([
-        fetchEnforcementFrequency(borough, violationType || undefined),
+      let topFn: (boro: string) => Promise<any[]>
+      if (activeTab === 'DOHMH') topFn = getDohmhTopViolations
+      else if (activeTab === 'DOB') topFn = getDobTopViolations
+      else if (activeTab === 'DCA') topFn = getDcaTopViolations
+      else topFn = getDsnyTopViolations
+
+      const [freq, insp, top] = await Promise.all([
+        fetchEnforcementFrequency(borough),
         address ? fetchRestaurantInspections(address) : Promise.resolve([]),
-      getDohmhTopViolations(borough),
+        topFn(borough),
       ])
-      setFreqData(freq)
-      setInspData(insp)
-      setDohmhViolations(dohmhV || [])
-      setTimePattern(analyzeTimePattern(freq))
-      setClusterRisk(detectClusterRisk(freq))
+      setFreqData(freq ?? [])
+      setInspData(insp ?? [])
+      setTopViolations(top ?? [])
+      setTimePattern(analyzeTimePattern(freq ?? []))
+      setClusterRisk(detectClusterRisk(freq ?? []))
     } catch (e: any) {
       setError('数据加载失败，请稍后重试')
     } finally {
@@ -55,7 +71,6 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
 
   return (
     <div style={{ padding: '0 0 40px' }}>
-      {/* 标题 */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
           执法规律分析
@@ -65,13 +80,30 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
         </div>
       </div>
 
+      {/* Tab 切换 */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {TABS.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => { setActiveTab(tab.key); setTimePattern(null) }}
+            style={{
+              padding: '8px 16px', borderRadius: 8, border: '1px solid',
+              borderColor: activeTab === tab.key ? 'var(--accent)' : 'var(--border)',
+              background: activeTab === tab.key ? 'var(--accent)' : 'var(--surface)',
+              color: activeTab === tab.key ? '#000' : 'var(--text2)',
+              fontSize: 13, fontWeight: activeTab === tab.key ? 600 : 400,
+              cursor: 'pointer',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* 查询条件 */}
       <div style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: 12,
-        padding: '20px',
-        marginBottom: 20,
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        borderRadius: 12, padding: '20px', marginBottom: 20,
       }}>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: '1 1 160px' }}>
@@ -88,23 +120,10 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
               {BOROUGHS.map(b => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
-          <div style={{ flex: '1 1 160px' }}>
-            <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 6 }}>执法类型（可选）</div>
-            <select
-              value={violationType}
-              onChange={e => setViolationType(e.target.value)}
-              style={{
-                width: '100%', padding: '8px 10px', borderRadius: 8,
-                border: '1px solid var(--border)', background: 'var(--bg)',
-                color: 'var(--text)', fontSize: 13,
-              }}
-            >
-              <option value=''>全部类型</option>
-              {VIOLATION_TYPES.filter(Boolean).map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </div>
           <div style={{ flex: '2 1 240px' }}>
-            <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 6 }}>餐厅地址（可选，查检查历史）</div>
+            <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 6 }}>
+              餐厅地址（可选，查检查历史）
+            </div>
             <input
               value={address}
               onChange={e => setAddress(e.target.value)}
@@ -122,7 +141,8 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
             style={{
               padding: '8px 24px', borderRadius: 8, border: 'none',
               background: loading ? 'var(--border)' : 'var(--accent)',
-              color: loading ? 'var(--text3)' : '#000', fontSize: 13, fontWeight: 600,
+              color: loading ? 'var(--text3)' : '#000',
+              fontSize: 13, fontWeight: 600,
               cursor: loading ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
             }}
           >
@@ -131,28 +151,22 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
         </div>
       </div>
 
-      {error && (
-        <div style={{ color: 'var(--red)', fontSize: 13, marginBottom: 16 }}>{error}</div>
-      )}
+      {error && <div style={{ color: 'var(--red)', fontSize: 13, marginBottom: 16 }}>{error}</div>}
 
       {/* 结果区 */}
       {timePattern && (
         <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
 
-          {/* 执法时间热力图 */}
-          <div style={{
-            background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 12, padding: 20,
-          }}>
+          {/* 执法时间分布 */}
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 16 }}>
-              📅 执法时间分布（近2年数据）
+              📅 执法时间分布（近2年）
             </div>
             {Object.entries(timePattern.byDayOfWeek as Record<string, number>).map(([day, count]) => (
               <div key={day} style={{ marginBottom: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
                   <span style={{ color: day === timePattern.peakDay ? 'var(--accent)' : 'var(--text2)' }}>
-                    {dayLabels[day] || day}
-                    {day === timePattern.peakDay && ' 🔥 高峰'}
+                    {dayLabels[day] || day}{day === timePattern.peakDay && ' 🔥 高峰'}
                   </span>
                   <span style={{ color: 'var(--text3)' }}>{count} 次</span>
                 </div>
@@ -169,10 +183,7 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
           </div>
 
           {/* 集群风险 */}
-          <div style={{
-            background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 12, padding: 20,
-          }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 16 }}>
               ⚠️ 近30天集群风险
             </div>
@@ -188,8 +199,7 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
                 {clusterRisk.riskTypes.map(([type, count]: [string, number]) => (
                   <div key={type} style={{
                     display: 'flex', justifyContent: 'space-between',
-                    padding: '8px 0', borderBottom: '1px solid var(--border)',
-                    fontSize: 13,
+                    padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: 13,
                   }}>
                     <span style={{ color: 'var(--text2)' }}>{type}</span>
                     <span style={{ color: 'var(--red)', fontWeight: 600 }}>{count} 起</span>
@@ -199,41 +209,38 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
             ) : (
               <div style={{
                 background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)',
-                borderRadius: 8, padding: '10px 14px',
-                fontSize: 13, color: 'var(--green)',
+                borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--green)',
               }}>
                 ✓ 近30天该街区无集群风险
               </div>
             )}
           </div>
 
-          {/* 执法频率 top 违规类型 */}
+          {/* Top 10 违规 */}
           <div style={{
             background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 12, padding: 20,
-            gridColumn: 'span 2',
+            borderRadius: 12, padding: 20, gridColumn: 'span 2',
           }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 16 }}>
-              📊 {borough} 近期高频违规（Top 10）
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
+              📊 {borough} · {TABS.find(t => t.key === activeTab)?.label} 高频违规 Top 10
             </div>
-            {(() => {
-              const counts: Record<string, number> = {}
-              dohmhViolations.forEach((v: any) => {
-                const t = v.description || v.code || '未知'
-                counts[t] = (counts[t] || 0) + (v.count || 1)
-              })
-              const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10)
-              const max = sorted[0]?.[1] || 1
-              return sorted.map(([type, count]) => (
-                <div key={type} style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 16 }}>
+              {TABS.find(t => t.key === activeTab)?.desc}数据
+            </div>
+            {topViolations.length === 0 ? (
+              <div style={{ fontSize: 13, color: 'var(--text3)' }}>暂无数据</div>
+            ) : (() => {
+              const max = topViolations[0]?.count || 1
+              return topViolations.map((v: any) => (
+                <div key={v.code} style={{ marginBottom: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                    <span style={{ color: 'var(--text2)' }}>{type}</span>
-                    <span style={{ color: 'var(--text3)' }}>{count} 次</span>
+                    <span style={{ color: 'var(--text2)' }}>{v.description || v.code}</span>
+                    <span style={{ color: 'var(--text3)' }}>{v.count} 次</span>
                   </div>
                   <div style={{ height: 6, borderRadius: 3, background: 'var(--border)' }}>
                     <div style={{
                       height: '100%', borderRadius: 3,
-                      width: `${Math.round((count / max) * 100)}%`,
+                      width: `${Math.round((v.count / max) * 100)}%`,
                       background: 'var(--accent)',
                     }} />
                   </div>
@@ -246,8 +253,7 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
           {inspData.length > 0 && (
             <div style={{
               background: 'var(--surface)', border: '1px solid var(--border)',
-              borderRadius: 12, padding: 20,
-              gridColumn: 'span 2',
+              borderRadius: 12, padding: 20, gridColumn: 'span 2',
             }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 16 }}>
                 🏠 餐厅检查历史（{inspData.length} 条）
@@ -280,13 +286,9 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
         </div>
       )}
 
-      {/* 空状态 */}
       {!loading && !timePattern && (
-        <div style={{
-          textAlign: 'center', padding: '60px 20px',
-          color: 'var(--text3)', fontSize: 13,
-        }}>
-          选择街区后点击「开始分析」，查看执法规律与风险预警
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text3)', fontSize: 13 }}>
+          选择街区和数据源后点击「开始分析」，查看执法规律与风险预警
         </div>
       )}
     </div>
