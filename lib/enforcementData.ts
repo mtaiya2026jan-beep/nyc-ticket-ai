@@ -33,11 +33,11 @@ export async function fetchEnforcementFrequency(borough: string, violationType?:
   const boro = BORO_MAP[borough] || 'MANHATTAN'
   const { data, error } = await supabase
     .from('oath_violations_slim')
-    .select('violation_date, charge1_code, charge1_code_description, viol_loc_borough')
+    .select('hearing_date, charge1_code, charge1_code_description, viol_loc_borough')
     .eq('viol_loc_borough', boro)
-    .not('violation_date', 'is', null)
-    .lte('violation_date', new Date().toISOString().split('T')[0])
-    .order('violation_date', { ascending: false })
+    .not('hearing_date', 'is', null)
+    .lte('hearing_date', new Date().toISOString().split('T')[0])
+    .order('hearing_date', { ascending: false })
     .limit(5000)
   if (error) throw new Error('Supabase enforcement query error: ' + error.message)
   return data
@@ -47,9 +47,9 @@ export async function fetchRestaurantInspections(address: string) {
   const upper = address.toUpperCase()
   const { data, error } = await supabase
     .from('oath_violations_slim')
-    .select('violation_date, charge1_code, charge1_code_description, viol_loc_borough, respondent_address')
+    .select('hearing_date, charge1_code, charge1_code_description, viol_loc_borough, respondent_address')
     .ilike('respondent_address', '%' + upper + '%')
-    .order('violation_date', { ascending: false })
+    .order('hearing_date', { ascending: false })
     .limit(50)
   if (error) throw new Error('Supabase inspections query error: ' + error.message)
   return data
@@ -58,8 +58,9 @@ export async function fetchRestaurantInspections(address: string) {
 export function analyzeTimePattern(data: any[]) {
   const byDayOfWeek: Record<string, number> = {}
   for (const row of data) {
-    if (!row.violation_date) continue
-    const d = new Date(row.violation_date)
+    const dateStr = row.hearing_date || row.violation_date
+    if (!dateStr) continue
+    const d = new Date(dateStr)
     if (d.getFullYear() < 2000 || d > new Date()) continue
     const day = d.toLocaleDateString('en-US', { weekday: 'short' })
     byDayOfWeek[day] = (byDayOfWeek[day] || 0) + 1
@@ -75,8 +76,9 @@ export function detectClusterRisk(data: any[]) {
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
   const recent = data.filter(r => {
-    if (!r.violation_date) return false
-    const d = new Date(r.violation_date)
+    const dateStr = r.hearing_date || r.violation_date
+    if (!dateStr) return false
+    const d = new Date(dateStr)
     return d.getFullYear() >= 2000 && d > thirtyDaysAgo
   })
   const typeCounts: Record<string, number> = {}
@@ -95,7 +97,7 @@ export function detectClusterRisk(data: any[]) {
   }
 }
 
-// DOHMH — violation_code + violation_description + boro(首字母大写)
+// DOHMH
 export async function getDohmhTopViolations(
   boro?: string
 ): Promise<{ code: string; description: string; count: number }[]> {
@@ -120,7 +122,7 @@ export async function getDohmhTopViolations(
     .slice(0, 10)
 }
 
-// DOB — violation_type + violation_description + boro(数字)
+// DOB
 export async function getDobTopViolations(
   boro?: string
 ): Promise<{ code: string; description: string; count: number }[]> {
@@ -145,7 +147,7 @@ export async function getDobTopViolations(
     .slice(0, 10)
 }
 
-// DCA — inspection_type + inspection_status + borough(首字母大写)
+// DCA
 export async function getDcaTopViolations(
   boro?: string
 ): Promise<{ code: string; description: string; count: number }[]> {
@@ -170,7 +172,7 @@ export async function getDcaTopViolations(
     .slice(0, 10)
 }
 
-// DSNY — charge_1_code + charge_1_code_description + violation_location_borough(全大写)
+// DSNY
 export async function getDsnyTopViolations(
   boro?: string
 ): Promise<{ code: string; description: string; count: number }[]> {
