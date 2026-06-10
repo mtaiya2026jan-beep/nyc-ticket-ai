@@ -2,17 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
-
+// 普通客户端（用于读写数据表）
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-// plan -> 允许的最大门店数
+// Admin客户端（用于创建Auth用户、发Magic Link）
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { autoRefreshToken: false, persistSession: false } }
+)
+
 const PLAN_STORE_LIMITS: Record<string, number> = {
-  single:       0,  // 单次申诉，无门店权限
-  solo_annual:  1,
-  biz_annual:   5,
+  single:      0,
+  solo_annual: 1,
+  biz_annual:  5,
 }
 
 export async function POST(req: NextRequest) {
@@ -31,11 +37,10 @@ export async function POST(req: NextRequest) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session
 
-    // 读取 plan（checkout 已在 metadata 里传入）
     const plan = session.metadata?.plan || 'single'
     const storeLimit = PLAN_STORE_LIMITS[plan] ?? 0
 
-    // 1. 写入 paid_sessions（含 plan）
+    // 1. 写入 paid_sessions
     await supabase.from('paid_sessions').insert({
       session_id: session.id,
       customer_email: session.customer_details?.email,
@@ -45,23 +50,57 @@ export async function POST(req: NextRequest) {
     })
     console.log('付款成功已记录:', session.id, 'plan:', plan)
 
-    // 2. 写入 / 更新 user_plans（通过 email 查 user_id）
+    // 2. 创建账户 / 更新 user_plans + 发 Magic Link
     const email = session.customer_details?.email
-    if (email && plan !== 'single') {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .single()
+    if (email) {
+      // 查是否已有 Auth 用户
+      const { data: { users } } = await supabaseAdmin.auth.admin.listUsers()
+      const existingUser = users.find(u => u.email === email)
 
-      if (userData?.id) {
+      let userId: string
+
+      if (existingUser) {
+        // 已有账户，直接用
+        userId = existingUser.id
+        console.log('已有用户:', email)
+      } else {
+        // 新用户，创建 Auth 账户
+        const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+          email,
+          email_confirm: true,
+        })
+        if (createError || !newUser.user) {
+          console.error('创建用户失败:', createError?.message)
+        } else {
+          userId = newUser.user.id
+          console.log('新用户已创建:', email)
+        }
+      }
+
+      // 更新 user_plans（年费套餐）
+      if (plan !== 'single' && userId!) {
         await supabase.from('user_plans').upsert({
-          user_id: userData.id,
+          user_id: userId!,
           plan,
           store_limit: storeLimit,
           activated_at: new Date().toISOString(),
         })
-        console.log('用户plan已更新:', email, plan, '门店上限:', storeLimit)
+        console.log('用户plan已更新:', email, plan)
+      }
+
+      // 发 Magic Link（所有套餐都发，让用户能登录看申诉记录）
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://nycticketai.vercel.app'
+      const { error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'magiclink',
+        email,
+        options: {
+          redirectTo: `${siteUrl}/dashboard`,
+        },
+      })
+      if (linkError) {
+        console.error('Magic Link发送失败:', linkError.message)
+      } else {
+        console.log('Magic Link已发送至:', email)
       }
     }
 
