@@ -95,7 +95,7 @@ export function detectClusterRisk(data: any[]) {
   }
 }
 
-// DOHMH
+// DOHMH — violation_code + violation_description + boro(首字母大写)
 export async function getDohmhTopViolations(
   boro?: string
 ): Promise<{ code: string; description: string; count: number }[]> {
@@ -120,23 +120,24 @@ export async function getDohmhTopViolations(
     .slice(0, 10)
 }
 
-// DOB
+// DOB — violation_type + violation_description + boro(数字)
 export async function getDobTopViolations(
   boro?: string
 ): Promise<{ code: string; description: string; count: number }[]> {
   let query = supabase
     .from('dob_ecb_violations')
-    .select('violation_type, description')
+    .select('violation_type, violation_description')
+    .not('violation_type', 'is', null)
     .limit(100000)
   if (boro) query = query.eq('boro', DOB_BORO_MAP[boro] || '1')
   const { data, error } = await query
   if (error || !data) return []
   const map = new Map<string, { description: string; count: number }>()
   for (const row of data) {
-    const key = row.violation_type || '未知'
+    const key = row.violation_type!
     const existing = map.get(key)
     if (existing) { existing.count++ }
-    else { map.set(key, { description: row.description || key, count: 1 }) }
+    else { map.set(key, { description: row.violation_description || key, count: 1 }) }
   }
   return Array.from(map.entries())
     .map(([code, v]) => ({ code, ...v }))
@@ -144,24 +145,24 @@ export async function getDobTopViolations(
     .slice(0, 10)
 }
 
-// DCA
+// DCA — inspection_type + inspection_status + borough(首字母大写)
 export async function getDcaTopViolations(
   boro?: string
 ): Promise<{ code: string; description: string; count: number }[]> {
   let query = supabase
     .from('dca_inspections')
-    .select('violation_code, violation_description')
-    .not('violation_code', 'is', null)
+    .select('inspection_type, inspection_status')
+    .not('inspection_type', 'is', null)
     .limit(100000)
   if (boro) query = query.eq('borough', DOHMH_BORO_MAP[boro] || boro)
   const { data, error } = await query
   if (error || !data) return []
   const map = new Map<string, { description: string; count: number }>()
   for (const row of data) {
-    const key = row.violation_code!
+    const key = row.inspection_type!
     const existing = map.get(key)
     if (existing) { existing.count++ }
-    else { map.set(key, { description: row.violation_description || key, count: 1 }) }
+    else { map.set(key, { description: row.inspection_status || key, count: 1 }) }
   }
   return Array.from(map.entries())
     .map(([code, v]) => ({ code, ...v }))
@@ -169,24 +170,24 @@ export async function getDcaTopViolations(
     .slice(0, 10)
 }
 
-// DSNY
+// DSNY — charge_1_code + charge_1_code_description + violation_location_borough(全大写)
 export async function getDsnyTopViolations(
   boro?: string
 ): Promise<{ code: string; description: string; count: number }[]> {
   let query = supabase
     .from('dsny_violations')
-    .select('violation_code, violation_description')
-    .not('violation_code', 'is', null)
+    .select('charge_1_code, charge_1_code_description')
+    .not('charge_1_code', 'is', null)
     .limit(100000)
   if (boro) query = query.eq('violation_location_borough', boro)
   const { data, error } = await query
   if (error || !data) return []
   const map = new Map<string, { description: string; count: number }>()
   for (const row of data) {
-    const key = row.violation_code!
+    const key = row.charge_1_code!
     const existing = map.get(key)
     if (existing) { existing.count++ }
-    else { map.set(key, { description: row.violation_description || key, count: 1 }) }
+    else { map.set(key, { description: row.charge_1_code_description || key, count: 1 }) }
   }
   return Array.from(map.entries())
     .map(([code, v]) => ({ code, ...v }))
