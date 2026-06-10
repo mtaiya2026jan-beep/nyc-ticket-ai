@@ -54,7 +54,8 @@ export async function POST(req: NextRequest) {
     const email = session.customer_details?.email
     if (email) {
       // 查是否已有 Auth 用户
-      const { data: { users } } = await supabaseAdmin.auth.admin.listUsers()
+      const { data: listData } = await supabaseAdmin.auth.admin.listUsers()
+      const users = listData?.users || []
       const existingUser = users.find(u => u.email === email)
 
       let userId: string
