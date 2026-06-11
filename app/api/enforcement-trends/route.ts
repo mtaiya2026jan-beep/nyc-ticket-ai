@@ -22,24 +22,22 @@ export async function GET(req: Request) {
   }
   const boro = BORO_MAP[borough] || 'MANHATTAN'
 
-  const { data, error } = await supabase
-    .from('oath_violations_slim')
-    .select('hearing_date')
-    .eq('viol_loc_borough', boro)
-    .not('hearing_date', 'is', null)
+  const currentYear = new Date().getFullYear()
+  const years = Array.from({ length: currentYear - 2002 + 1 }, (_, i) => 2002 + i)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const counts = await Promise.all(
+    years.map(async year => {
+      const { count } = await supabase
+        .from('oath_violations_slim')
+        .select('*', { count: 'exact', head: true })
+        .eq('viol_loc_borough', boro)
+        .gte('hearing_date', `${year}-01-01`)
+        .lte('hearing_date', `${year}-12-31`)
+      return { month: `${year}-01`, count: count ?? 0 }
+    })
+  )
 
-  const monthMap: Record<string, number> = {}
-  for (const row of data ?? []) {
-    const d = row.hearing_date?.slice(0, 7)
-    if (!d) continue
-    monthMap[d] = (monthMap[d] || 0) + 1
-  }
-
-  const trend = Object.entries(monthMap)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, count]) => ({ month, count }))
+  const trend = counts.filter(d => d.count > 0)
 
   return NextResponse.json({ trend, mayors: MAYORS })
 }
