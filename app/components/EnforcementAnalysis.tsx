@@ -19,7 +19,7 @@ const TABS = [
   { key: 'DOB',    label: '🏗 建筑 DOB',   desc: '建筑施工违规' },
   { key: 'DCA',    label: '📋 执照 DCA',   desc: '营业执照违规' },
   { key: 'DSNY',   label: '🗑 环卫 DSNY',  desc: '垃圾环卫违规' },
-  { key: 'POLICY', label: '📈 政策周期',   desc: '历届市长执法趋势预测' },
+  { key: 'POLICY', label: '📈 政策周期 NEW',   desc: '历届市长执法趋势预测' },
 ]
 
 type MayorInfo = { name: string; start: number; end: number; color: string }
