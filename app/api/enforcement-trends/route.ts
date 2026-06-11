@@ -24,17 +24,17 @@ export async function GET(req: Request) {
 
   const { data, error } = await supabase
     .from('oath_violations_slim')
-    .select('hearing_date')
+    .select('violation_date')
     .eq('viol_loc_borough', boro)
-    .not('hearing_date', 'is', null)
-    .gte('hearing_date', '2002-01-01')
-    .lte('hearing_date', new Date().toISOString().split('T')[0])
+    .not('violation_date', 'is', null)
+    .gte('violation_date', '2002-01-01')
+    .lte('violation_date', new Date().toISOString().split('T')[0])
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const monthMap: Record<string, number> = {}
   for (const row of data ?? []) {
-    const d = row.hearing_date?.slice(0, 7)
+    const d = row.violation_date?.slice(0, 7)
     if (!d) continue
     monthMap[d] = (monthMap[d] || 0) + 1
   }
