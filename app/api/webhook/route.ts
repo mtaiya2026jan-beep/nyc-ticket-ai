@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { Resend } from 'resend'
+
+const resend = new Resend(process.env.RESEND_API_KEY!)
 
 // 普通客户端（用于读写数据表）
 const supabase = createClient(
@@ -91,7 +94,7 @@ export async function POST(req: NextRequest) {
 
       // 发 Magic Link（所有套餐都发，让用户能登录看申诉记录）
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://nycticketai.vercel.app'
-      const { error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'magiclink',
         email,
         options: {
@@ -99,9 +102,36 @@ export async function POST(req: NextRequest) {
         },
       })
       if (linkError) {
-        console.error('Magic Link发送失败:', linkError.message)
+        console.error('Magic Link生成失败:', linkError.message)
       } else {
-        console.log('Magic Link已发送至:', email)
+        const actionLink = (linkData as any)?.properties?.action_link
+        if (actionLink) {
+          // TODO: 生产上线前在 Resend 验证自定义域名，将 from 改为 noreply@yourdomain.com
+          const { error: emailError } = await resend.emails.send({
+            from: 'onboarding@resend.dev',
+            to: email,
+            subject: '登录 NYC Ticket AI — 点击链接一键登录',
+            html: `
+              <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
+                <h2 style="margin-bottom:8px">NYC Ticket AI</h2>
+                <p style="color:#555;margin-bottom:24px">您的付款已确认，点击下方按钮登录查看申诉进度：</p>
+                <a href="${actionLink}"
+                   style="display:inline-block;padding:12px 28px;background:#f5a623;color:#000;
+                          text-decoration:none;border-radius:8px;font-weight:600">
+                  一键登录 Dashboard
+                </a>
+                <p style="color:#999;font-size:12px;margin-top:24px">
+                  链接15分钟内有效，仅限单次使用。
+                </p>
+              </div>
+            `,
+          })
+          if (emailError) {
+            console.error('Resend发送失败:', emailError.message)
+          } else {
+            console.log('Magic Link已通过Resend发送至:', email)
+          }
+        }
       }
     }
 
