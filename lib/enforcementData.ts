@@ -135,6 +135,15 @@ export async function getDcaTopViolations(boro?: string): Promise<{ code: string
   return Array.from(map.entries()).map(([code, v]) => ({ code, ...v })).sort((a, b) => b.count - a.count).slice(0, 10)
 }
 
+export async function fetchOathTrends(borough: string): Promise<{
+  trend: { month: string; count: number }[]
+  mayors: { name: string; start: number; end: number; color: string }[]
+}> {
+  const res = await fetch(`/api/enforcement-trends?borough=${encodeURIComponent(borough)}`)
+  if (!res.ok) throw new Error('fetchOathTrends error: ' + res.status)
+  return res.json()
+}
+
 // DSNY
 export async function getDsnyTopViolations(boro?: string): Promise<{ code: string; description: string; count: number }[]> {
   let query = supabase.from('dsny_violations').select('charge_1_code, charge_1_code_description').not('charge_1_code', 'is', null).limit(100000)

@@ -9,16 +9,213 @@ import {
   getDobTopViolations,
   getDcaTopViolations,
   getDsnyTopViolations,
+  fetchOathTrends,
 } from '@/lib/enforcementData'
 
 const BOROUGHS = ['MANHATTAN', 'BROOKLYN', 'QUEENS', 'BRONX', 'STATEN ISLAND']
 
 const TABS = [
-  { key: 'DOHMH', label: '🍽 卫生 DOHMH', desc: '餐厅食品安全' },
-  { key: 'DOB',   label: '🏗 建筑 DOB',   desc: '建筑施工违规' },
-  { key: 'DCA',   label: '📋 执照 DCA',   desc: '营业执照违规' },
-  { key: 'DSNY',  label: '🗑 环卫 DSNY',  desc: '垃圾环卫违规' },
+  { key: 'DOHMH',  label: '🍽 卫生 DOHMH', desc: '餐厅食品安全' },
+  { key: 'DOB',    label: '🏗 建筑 DOB',   desc: '建筑施工违规' },
+  { key: 'DCA',    label: '📋 执照 DCA',   desc: '营业执照违规' },
+  { key: 'DSNY',   label: '🗑 环卫 DSNY',  desc: '垃圾环卫违规' },
+  { key: 'POLICY', label: '📈 政策周期',   desc: '历届市长执法趋势预测' },
 ]
+
+type MayorInfo = { name: string; start: number; end: number; color: string }
+type TrendPoint = { month: string; count: number }
+
+function PolicyCycleChart({ trend, mayors, borough }: {
+  trend: TrendPoint[]
+  mayors: MayorInfo[]
+  borough: string
+}) {
+  const yearMap: Record<number, number> = {}
+  for (const { month, count } of trend) {
+    const year = parseInt(month.slice(0, 4))
+    if (year >= 2002 && year <= 2026) yearMap[year] = (yearMap[year] || 0) + count
+  }
+  const yearlyData = Object.entries(yearMap)
+    .sort(([a], [b]) => parseInt(a) - parseInt(b))
+    .map(([y, c]) => ({ year: parseInt(y), count: c }))
+
+  if (yearlyData.length === 0) {
+    return <div style={{ color: 'var(--text3)', fontSize: 13, padding: 20 }}>暂无趋势数据</div>
+  }
+
+  const W = 760, H = 270
+  const padL = 60, padR = 20, padT = 34, padB = 46
+  const chartW = W - padL - padR
+  const chartH = H - padT - padB
+
+  const minYear = yearlyData[0].year
+  const maxYear = Math.max(yearlyData[yearlyData.length - 1].year, 2026)
+  const span = maxYear - minYear || 1
+  const maxCount = Math.max(...yearlyData.map(d => d.count))
+
+  const xS = (y: number) => padL + ((y - minYear) / span) * chartW
+  const yS = (c: number) => padT + chartH - (c / maxCount) * chartH
+
+  const points = yearlyData.map(d => `${xS(d.year).toFixed(1)},${yS(d.count).toFixed(1)}`).join(' ')
+
+  const last2 = yearlyData.slice(-2)
+  const predicts: { year: number; count: number }[] = []
+  if (last2.length === 2) {
+    const slope = last2[1].count - last2[0].count
+    for (let y = last2[1].year + 1; y <= 2026; y++) {
+      predicts.push({ year: y, count: Math.max(0, last2[1].count + slope * (y - last2[1].year)) })
+    }
+  }
+  const predPoints = predicts.length > 0
+    ? [yearlyData[yearlyData.length - 1], ...predicts]
+        .map(d => `${xS(d.year).toFixed(1)},${yS(d.count).toFixed(1)}`).join(' ')
+    : ''
+
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map(f => ({
+    y: padT + chartH - f * chartH,
+    label: Math.round(f * maxCount).toLocaleString(),
+  }))
+  const xTicks: { x: number; label: string }[] = []
+  for (let y = minYear % 2 === 0 ? minYear : minYear + 1; y <= maxYear; y += 2) {
+    xTicks.push({ x: xS(y), label: String(y) })
+  }
+
+  const stats = mayors.map(m => {
+    const ys = yearlyData.filter(d => d.year >= m.start && d.year <= m.end)
+    const avg = ys.length ? Math.round(ys.reduce((s, d) => s + d.count, 0) / ys.length) : 0
+    return { ...m, avg }
+  })
+  const bloombergAvg = stats.find(m => m.name === 'Bloomberg')?.avg ?? 0
+  const deblasioAvg  = stats.find(m => m.name === 'De Blasio')?.avg ?? 0
+  const adamsYears   = yearlyData.filter(d => d.year >= 2022)
+  const adamsAvg     = adamsYears.length
+    ? Math.round(adamsYears.reduce((s, d) => s + d.count, 0) / adamsYears.length) : 0
+  const vsBloomberg  = bloombergAvg
+    ? Math.round(((adamsAvg - bloombergAvg) / bloombergAvg) * 100) : 0
+  const adamsTrend   = adamsYears.length >= 2
+    ? adamsYears[adamsYears.length - 1].count > adamsYears[0].count ? '上升' : '下降'
+    : '稳定'
+  const nextYearEst  = predicts[0]?.count ? Math.round(predicts[0].count).toLocaleString() : null
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+        {mayors.map(m => {
+          const x1 = xS(Math.max(m.start, minYear))
+          const x2 = xS(Math.min(m.end + 1, maxYear + 1))
+          return (
+            <rect key={m.name} x={x1} y={padT} width={Math.max(0, x2 - x1)} height={chartH}
+              fill={m.color} fillOpacity={0.1} />
+          )
+        })}
+
+        {yTicks.map(t => (
+          <line key={t.y} x1={padL} y1={t.y} x2={W - padR} y2={t.y}
+            stroke="rgba(128,128,128,0.2)" strokeWidth={1} />
+        ))}
+
+        {predPoints && (
+          <polyline points={predPoints}
+            style={{ fill: 'none', stroke: 'var(--accent)', strokeWidth: 1.5, strokeDasharray: '5,4', opacity: 0.5 }} />
+        )}
+
+        <polyline points={points}
+          style={{ fill: 'none', stroke: 'var(--accent)', strokeWidth: 2.5 }} />
+
+        {yearlyData.map(d => (
+          <circle key={d.year} cx={xS(d.year)} cy={yS(d.count)} r={3.5}
+            style={{ fill: 'var(--accent)', stroke: 'var(--surface)', strokeWidth: 1.5 }} />
+        ))}
+
+        {yTicks.map(t => (
+          <text key={t.y} x={padL - 6} y={t.y + 4} textAnchor="end"
+            fontSize={9} fill="rgba(128,128,128,0.8)">{t.label}</text>
+        ))}
+
+        {xTicks.map(t => (
+          <text key={t.label} x={t.x} y={H - 7} textAnchor="middle"
+            fontSize={9} fill="rgba(128,128,128,0.8)">{t.label}</text>
+        ))}
+
+        {mayors.map(m => {
+          const x1 = xS(Math.max(m.start, minYear))
+          const x2 = xS(Math.min(m.end + 1, maxYear + 1))
+          return (
+            <text key={m.name + '-lbl'} x={(x1 + x2) / 2} y={padT - 10}
+              textAnchor="middle" fontSize={11} fill={m.color} fontWeight="600">
+              {m.name}
+            </text>
+          )
+        })}
+      </svg>
+
+      <div style={{ display: 'flex', gap: 14, marginTop: 6, marginBottom: 20, flexWrap: 'wrap', fontSize: 12 }}>
+        {mayors.map(m => (
+          <div key={m.name} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{ width: 10, height: 10, borderRadius: 2, background: m.color }} />
+            <span style={{ color: 'var(--text2)' }}>{m.name} {m.start}–{m.end}</span>
+          </div>
+        ))}
+        {predPoints && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <svg width="22" height="10" style={{ display: 'block' }}>
+              <line x1="0" y1="5" x2="22" y2="5"
+                stroke="var(--accent)" strokeWidth="1.5" strokeDasharray="5,4" opacity="0.6" />
+            </svg>
+            <span style={{ color: 'var(--text2)' }}>预测趋势</span>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
+        {stats.map(m => (
+          <div key={m.name} style={{
+            background: 'var(--bg)', border: `1px solid ${m.color}40`,
+            borderRadius: 10, padding: '12px 16px',
+          }}>
+            <div style={{ fontSize: 11, color: m.color, fontWeight: 600, marginBottom: 4 }}>
+              {m.name}（{m.start}–{m.end}）
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
+              {m.avg.toLocaleString()}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text3)' }}>年均执法次数</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{
+        background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)',
+        borderRadius: 10, padding: '14px 18px',
+      }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 10 }}>
+          📋 执法预测摘要 · {borough}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>
+          <span>• Bloomberg 时代年均 {bloombergAvg.toLocaleString()} 次，奠定执法基准。</span>
+          <span>
+            • De Blasio 时代年均 {deblasioAvg.toLocaleString()} 次，较 Bloomberg{' '}
+            {deblasioAvg > bloombergAvg ? '增长' : '下降'}{' '}
+            {Math.abs(Math.round(((deblasioAvg - bloombergAvg) / (bloombergAvg || 1)) * 100))}%。
+          </span>
+          <span>
+            • Adams 现任年均 {adamsAvg.toLocaleString()} 次，执法力度
+            {adamsTrend === '上升' ? '持续加强' : '趋于收缩'}。
+            {nextYearEst ? `预计下一年约 ${nextYearEst} 次。` : ''}
+          </span>
+          {vsBloomberg !== 0 && (
+            <span>
+              • 当前执法量与 Bloomberg 基准相比{vsBloomberg > 0 ? '偏高' : '偏低'} {Math.abs(vsBloomberg)}%，
+              {vsBloomberg > 0
+                ? '整体监管环境趋严，建议提前合规自查。'
+                : '整体监管有所松弛，仍需关注专项执法行动。'}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function EnforcementAnalysis({ user }: { user: any }) {
   const [borough, setBorough] = useState('MANHATTAN')
@@ -31,12 +228,21 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
   const [topViolations, setTopViolations] = useState<any[]>([])
   const [clusterRisk, setClusterRisk] = useState<any>(null)
   const [error, setError] = useState('')
+  const [trendData, setTrendData] = useState<TrendPoint[]>([])
+  const [mayorData, setMayorData] = useState<MayorInfo[]>([])
 
   async function runAnalysis() {
     setLoading(true)
     setError('')
     setTimePattern(null)
     try {
+      if (activeTab === 'POLICY') {
+        const { trend, mayors } = await fetchOathTrends(borough)
+        setTrendData(trend ?? [])
+        setMayorData(mayors ?? [])
+        return
+      }
+
       let topFn: (boro: string) => Promise<any[]>
       if (activeTab === 'DOHMH') topFn = getDohmhTopViolations
       else if (activeTab === 'DOB') topFn = getDobTopViolations
@@ -85,7 +291,7 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
         {TABS.map(tab => (
           <button
             key={tab.key}
-            onClick={() => { setActiveTab(tab.key); setTimePattern(null) }}
+            onClick={() => { setActiveTab(tab.key); setTimePattern(null); setTrendData([]) }}
             style={{
               padding: '8px 16px', borderRadius: 8, border: '1px solid',
               borderColor: activeTab === tab.key ? 'var(--accent)' : 'var(--border)',
@@ -120,21 +326,23 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
               {BOROUGHS.map(b => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
-          <div style={{ flex: '2 1 240px' }}>
-            <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 6 }}>
-              餐厅地址（可选，查检查历史）
+          {activeTab !== 'POLICY' && (
+            <div style={{ flex: '2 1 240px' }}>
+              <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 6 }}>
+                餐厅地址（可选，查检查历史）
+              </div>
+              <input
+                value={address}
+                onChange={e => setAddress(e.target.value)}
+                placeholder='如：123 MAIN ST'
+                style={{
+                  width: '100%', padding: '8px 10px', borderRadius: 8,
+                  border: '1px solid var(--border)', background: 'var(--bg)',
+                  color: 'var(--text)', fontSize: 13, boxSizing: 'border-box',
+                }}
+              />
             </div>
-            <input
-              value={address}
-              onChange={e => setAddress(e.target.value)}
-              placeholder='如：123 MAIN ST'
-              style={{
-                width: '100%', padding: '8px 10px', borderRadius: 8,
-                border: '1px solid var(--border)', background: 'var(--bg)',
-                color: 'var(--text)', fontSize: 13, boxSizing: 'border-box',
-              }}
-            />
-          </div>
+          )}
           <button
             onClick={runAnalysis}
             disabled={loading}
@@ -153,8 +361,18 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
 
       {error && <div style={{ color: 'var(--red)', fontSize: 13, marginBottom: 16 }}>{error}</div>}
 
-      {/* 结果区 */}
-      {timePattern && (
+      {/* 政策周期结果 */}
+      {activeTab === 'POLICY' && trendData.length > 0 && (
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 16 }}>
+            📈 {borough} · 历届市长任期执法趋势（2002–2026）
+          </div>
+          <PolicyCycleChart trend={trendData} mayors={mayorData} borough={borough} />
+        </div>
+      )}
+
+      {/* 其他 Tab 结果 */}
+      {activeTab !== 'POLICY' && timePattern && (
         <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
 
           {/* 执法时间分布 */}
@@ -286,9 +504,11 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
         </div>
       )}
 
-      {!loading && !timePattern && (
+      {!loading && !timePattern && (activeTab !== 'POLICY' || trendData.length === 0) && (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text3)', fontSize: 13 }}>
-          选择街区和数据源后点击「开始分析」，查看执法规律与风险预警
+          {activeTab === 'POLICY'
+            ? '选择街区后点击「开始分析」，查看历届市长任期执法趋势与预测'
+            : '选择街区和数据源后点击「开始分析」，查看执法规律与风险预警'}
         </div>
       )}
     </div>
