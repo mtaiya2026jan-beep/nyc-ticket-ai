@@ -137,19 +137,30 @@ export async function getDcaTopViolations(boro?: string): Promise<{ code: string
 
 export async function fetchDobFrequency(borough: string) {
   const boro = DOB_BORO_MAP[borough] || '1'
+  // issue_date 存储格式为 YYYYMMDD（如 '20260428'），无法直接 ORDER BY（无索引会超时）
+  // 用近4年范围过滤代替排序，再在 JS 侧转换为 ISO 格式供 analyzeTimePattern/detectClusterRisk 使用
+  const fourYearsAgo = new Date()
+  fourYearsAgo.setFullYear(fourYearsAgo.getFullYear() - 4)
+  const cutoff = fourYearsAgo.toISOString().slice(0, 10).replace(/-/g, '') // 'YYYYMMDD'
   const { data, error } = await supabase
     .from('dob_ecb_violations')
     .select('issue_date, violation_type, violation_description, boro')
     .eq('boro', boro)
     .not('issue_date', 'is', null)
-    .order('issue_date', { ascending: false })
+    .gte('issue_date', cutoff)
     .limit(500)
   if (error) throw new Error('fetchDobFrequency error: ' + error.message)
-  return (data ?? []).map(row => ({
-    ...row,
-    violation_date: row.issue_date,
-    charge1_code_description: row.violation_description || row.violation_type,
-  }))
+  return (data ?? []).map(row => {
+    const d = row.issue_date ?? ''
+    const isoDate = d.length === 8
+      ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`
+      : d
+    return {
+      ...row,
+      violation_date: isoDate,
+      charge1_code_description: row.violation_description || row.violation_type,
+    }
+  })
 }
 
 export async function fetchDcaFrequency(borough: string) {
