@@ -130,12 +130,12 @@ export async function POST(req: NextRequest) {
           // ⚠️ onboarding@resend.dev 仅限发给 Resend 账户自己的邮箱（测试用）
           // 生产上线需在 Resend 验证自定义域名，并将 from 改为 noreply@yourdomain.com
           console.log('[WEBHOOK] 准备发送 Resend 邮件 → to:', email)
-          console.log('[WEBHOOK] ⚠️ 当前 from=onboarding@resend.dev，仅支持发给账户自身邮箱')
+          console.log('[WEBHOOK] from: noreply@ask-sophia.com')
 
           let sendResult: any
           try {
             sendResult = await resend.emails.send({
-              from: 'onboarding@resend.dev',
+              from: 'noreply@ask-sophia.com',
               to: email,
               subject: '登录 NYC Ticket AI — 点击链接一键登录',
               html: `
