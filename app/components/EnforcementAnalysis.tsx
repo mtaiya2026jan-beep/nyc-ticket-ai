@@ -403,6 +403,9 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
                 </div>
               </div>
             ))}
+            <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text3)', lineHeight: 1.6, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+              💡 高峰日执法频率最高，建议在该日前完成内部自查，避免被抽查。
+            </div>
           </div>
 
           {/* 集群风险 */}
@@ -437,6 +440,9 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
                 ✓ 近30天该街区无集群风险
               </div>
             )}
+            <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text3)', lineHeight: 1.6, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+              💡 集群风险表示近30天该街区同类违规明显集中，往往预示专项执法行动。
+            </div>
           </div>
 
           {/* Top 10 违规 */}
@@ -470,6 +476,9 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
                 </div>
               ))
             })()}
+            <div style={{ marginTop: 14, fontSize: 11, color: 'var(--text3)', lineHeight: 1.6, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+              💡 以上为该街区历史上最常见的违规类型。收到罚单后，可直接点击左侧「罚单智能分析」生成专业申诉书。
+            </div>
           </div>
 
           {/* 餐厅检查历史 */}
