@@ -3,8 +3,6 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY!)
-
 // 普通客户端（用于读写数据表）
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,6 +23,7 @@ const PLAN_STORE_LIMITS: Record<string, number> = {
 }
 
 export async function POST(req: NextRequest) {
+  const resend = new Resend(process.env.RESEND_API_KEY!)
   const body = await req.text()
   const sig = req.headers.get('stripe-signature')!
 
