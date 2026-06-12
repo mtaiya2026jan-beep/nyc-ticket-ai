@@ -157,6 +157,7 @@ const [user, setUser] = useState<any>(null)
   // 问卷 state
   const [showQuestionnaire, setShowQuestionnaire] = useState(false)
   const [questionnaire, setQuestionnaire] = useState<Record<string, string>>({})
+  const [quickAnswers, setQuickAnswers] = useState<Record<string, string>>({})
   const [evidenceFiles, setEvidenceFiles] = useState<{name: string; base64: string; type: string}[]>([])
   const [storeHistory, setStoreHistory] = useState({pastViolations: '', allRemediated: ''})
   const [hearingManualLoading, setHearingManualLoading] = useState(false)
@@ -336,6 +337,7 @@ const [user, setUser] = useState<any>(null)
           violations: scannedViolations,
           results: multiResults.map(r => r.analysis),
           questionnaire,
+          quickAnswers: quickAnswers,
           evidenceFiles: evidenceFiles.map(f => ({ name: f.name, type: f.type })),
           storeHistory,
         }),
@@ -363,6 +365,44 @@ const [user, setUser] = useState<any>(null)
   }
 
   const hasResults = multiResults.length > 0 || singleResult
+
+  function AgencyQuickQuestions({ agency, answers, onChange }: { agency: string, answers: Record<string,string>, onChange: (key: string, val: string) => void }) {
+    const pill = (key: string, label: string, options: string[]) => (
+      <div key={key} style={{marginBottom: 12}}>
+        <div style={{fontSize: 11, color: 'var(--text3)', marginBottom: 6}}>{label}</div>
+        <div style={{display: 'flex', gap: 6, flexWrap: 'wrap'}}>
+          {options.map(o => (
+            <button key={o} onClick={() => onChange(key, o)} style={{
+              padding: '5px 12px', borderRadius: 20, fontSize: 11, cursor: 'pointer', border: '1px solid',
+              borderColor: answers[key] === o ? 'var(--accent)' : 'var(--border)',
+              background: answers[key] === o ? 'rgba(232,255,71,0.15)' : 'var(--bg3)',
+              color: answers[key] === o ? 'var(--accent)' : 'var(--text2)',
+              fontWeight: answers[key] === o ? 600 : 400,
+            }}>{o}</button>
+          ))}
+        </div>
+      </div>
+    )
+
+    const questionsByAgency: Record<string, React.ReactNode> = {
+      DOHMH: <>{pill('currentGrade','当前店面评级',['A','B','C','未知'])}{pill('lastInspectionGrade','上次检查结果',['通过','未通过','未知'])}{pill('immediatelyFixed','违规当天是否立即整改',['是','否'])}{pill('hasFixProof','是否有整改照片/记录',['有','无'])}{pill('isFirstTime','是否初次此类违规',['是','否'])}</>,
+      DOB: <>{pill('permitStatus','施工许可证状态',['有效','过期','未申请'])}{pill('contractorLicensed','施工单位是否有执照',['有','无','不确定'])}{pill('workStopped','是否已停止施工',['已停工','继续施工'])}{pill('hasStopWorkOrder','是否有停工令',['有','无'])}{pill('isFirstTime','是否初次此类违规',['是','否'])}</>,
+      DCA: <>{pill('licenseStatus','营业执照状态',['有效','过期','申请中'])}{pill('wasOpen','被查时是否在营业',['是','否'])}{pill('licenseDisplayed','执照是否有展示',['有展示','未展示'])}{pill('isFirstTime','是否初次被查',['是','否'])}</>,
+      DSNY: <>{pill('correctDumpTime','垃圾投放时间是否符合规定',['符合','不符合','不清楚'])}{pill('lidCovered','垃圾桶是否加盖',['是','否'])}{pill('hasWarning','是否收到书面警告',['有','无'])}{pill('isFirstTime','是否初次此类违规',['是','否'])}</>,
+    }
+
+    const questions = questionsByAgency[agency]
+    if (!questions) return null
+
+    return (
+      <div style={{background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:16, marginBottom:16}}>
+        <div style={{fontSize:12, fontWeight:600, color:'var(--text)', marginBottom:12}}>
+          📋 补充信息 <span style={{fontSize:10, color:'var(--text3)', fontWeight:400}}>（填写后申诉书更精准）</span>
+        </div>
+        {questions}
+      </div>
+    )
+  }
 
   const ResultCard = ({ r, vc, isDb, desc }: { r: any, vc: string, isDb: boolean, desc?: string }) => (
     <div>
@@ -901,6 +941,7 @@ const [user, setUser] = useState<any>(null)
                     </div>
                   </div>
                   <div style={{padding:18}}>
+                    <AgencyQuickQuestions agency={agency} answers={quickAnswers} onChange={(k, v) => setQuickAnswers(prev => ({...prev, [k]: v}))} />
                     {multiResults[activeTab] && (
                       <ResultCard r={multiResults[activeTab].analysis} vc={multiResults[activeTab].violation_code} isDb={multiResults[activeTab].hasDbData} desc={multiResults[activeTab].analysis?.violationTitleCN} />
                     )}
