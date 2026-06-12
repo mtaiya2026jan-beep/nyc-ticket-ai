@@ -702,7 +702,7 @@ const [user, setUser] = useState<any>(null)
           <div style={{fontFamily:'DM Mono', fontSize:9, padding:'3px 8px', borderRadius:4, background:'rgba(71,255,154,0.1)', color:'var(--green)', border:'1px solid rgba(71,255,154,0.2)'}}>V1.8 LIVE</div>
           <div style={{marginLeft:'auto', display:'flex', gap:12}}>
             <div style={{display:'flex', alignItems:'center', gap:6, background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:6, padding:'5px 10px', fontSize:11, color:'var(--text2)'}}>
-              <i className="ti ti-database" style={{fontSize:13}} aria-hidden /> <span style={{color:'var(--text)', fontWeight:500}}>数据库 236万+ 条</span>
+              <i className="ti ti-database" style={{fontSize:13}} aria-hidden /> <span style={{color:'var(--text)', fontWeight:500}}>数据库 820万+ 条</span>
             </div>
           </div>
         </div>
