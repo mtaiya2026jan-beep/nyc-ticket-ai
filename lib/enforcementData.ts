@@ -135,6 +135,55 @@ export async function getDcaTopViolations(boro?: string): Promise<{ code: string
   return Array.from(map.entries()).map(([code, v]) => ({ code, ...v })).sort((a, b) => b.count - a.count).slice(0, 10)
 }
 
+export async function fetchDobFrequency(borough: string) {
+  const boro = DOB_BORO_MAP[borough] || '1'
+  const { data, error } = await supabase
+    .from('dob_ecb_violations')
+    .select('issue_date, violation_type, violation_description, boro')
+    .eq('boro', boro)
+    .not('issue_date', 'is', null)
+    .order('issue_date', { ascending: false })
+    .limit(500)
+  if (error) throw new Error('fetchDobFrequency error: ' + error.message)
+  return (data ?? []).map(row => ({
+    ...row,
+    violation_date: row.issue_date,
+    charge1_code_description: row.violation_description || row.violation_type,
+  }))
+}
+
+export async function fetchDcaFrequency(borough: string) {
+  const boro = DOHMH_BORO_MAP[borough] || 'Manhattan'
+  const { data, error } = await supabase
+    .from('dca_inspections')
+    .select('date_of_occurrence, inspection_type, inspection_status, borough')
+    .eq('borough', boro)
+    .not('date_of_occurrence', 'is', null)
+    .order('date_of_occurrence', { ascending: false })
+    .limit(500)
+  if (error) throw new Error('fetchDcaFrequency error: ' + error.message)
+  return (data ?? []).map(row => ({
+    ...row,
+    violation_date: row.date_of_occurrence,
+    charge1_code_description: row.inspection_type || row.inspection_status,
+  }))
+}
+
+export async function fetchDsnyFrequency(borough: string) {
+  const { data, error } = await supabase
+    .from('dsny_violations')
+    .select('violation_date, charge_1_code, charge_1_code_description, violation_location_borough')
+    .eq('violation_location_borough', borough)
+    .not('violation_date', 'is', null)
+    .order('violation_date', { ascending: false })
+    .limit(500)
+  if (error) throw new Error('fetchDsnyFrequency error: ' + error.message)
+  return (data ?? []).map(row => ({
+    ...row,
+    charge1_code_description: row.charge_1_code_description || row.charge_1_code,
+  }))
+}
+
 export async function fetchOathTrends(borough: string): Promise<{
   trend: { month: string; count: number }[]
   mayors: { name: string; start: number; end: number; color: string }[]

@@ -3,6 +3,9 @@
 import { useState } from 'react'
 import {
   fetchEnforcementFrequency,
+  fetchDobFrequency,
+  fetchDcaFrequency,
+  fetchDsnyFrequency,
   fetchRestaurantInspections,
   analyzeTimePattern,
   detectClusterRisk,
@@ -245,13 +248,14 @@ export default function EnforcementAnalysis({ user }: { user: any }) {
       }
 
       let topFn: (boro: string) => Promise<any[]>
-      if (activeTab === 'DOHMH') topFn = getDohmhTopViolations
-      else if (activeTab === 'DOB') topFn = getDobTopViolations
-      else if (activeTab === 'DCA') topFn = getDcaTopViolations
-      else topFn = getDsnyTopViolations
+      let freqFn: (boro: string) => Promise<any[]>
+      if (activeTab === 'DOHMH') { topFn = getDohmhTopViolations; freqFn = fetchEnforcementFrequency }
+      else if (activeTab === 'DOB') { topFn = getDobTopViolations; freqFn = fetchDobFrequency }
+      else if (activeTab === 'DCA') { topFn = getDcaTopViolations; freqFn = fetchDcaFrequency }
+      else { topFn = getDsnyTopViolations; freqFn = fetchDsnyFrequency }
 
       const [freq, insp, top] = await Promise.all([
-        fetchEnforcementFrequency(borough),
+        freqFn(borough),
         address ? fetchRestaurantInspections(address) : Promise.resolve([]),
         topFn(borough),
       ])
