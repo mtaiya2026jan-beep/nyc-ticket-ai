@@ -121,12 +121,16 @@ const [user, setUser] = useState<any>(null)
   const [modalLoading, setModalLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [isPaid, setIsPaid] = useState(false)
+  const [paymentSuccess, setPaymentSuccess] = useState(false)
 
   useEffect(() => {
     const url = new URL(window.location.href)
     if (url.searchParams.get('payment') === 'success') {
       sessionStorage.setItem('isPaid', 'true')
       setIsPaid(true)
+      setPaymentSuccess(true)
+      // 清除 URL 参数，避免刷新重复显示
+      window.history.replaceState({}, '', window.location.pathname)
       // 恢复付款前的分析结果
       const saved = sessionStorage.getItem('pendingResults')
       if (saved) {
@@ -553,6 +557,51 @@ const [user, setUser] = useState<any>(null)
   return (
     <div style={{display:'flex', height:'100vh', overflow:'hidden'}}>
       {showAuth && <AuthModal onClose={()=>setShowAuth(false)} onSuccess={(u)=>{setUser(u);loadAppeals(u);const p=sessionStorage.getItem('pendingPlan');if(p){sessionStorage.removeItem('pendingPlan');handleCheckout(p)}}} />}
+      {/* ===== 支付成功 Modal ===== */}
+      {paymentSuccess && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.85)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 24,
+        }}>
+          <div style={{
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 16, padding: '40px 32px', maxWidth: 480, width: '100%',
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+            <div style={{
+              fontFamily: 'Syne', fontWeight: 700, fontSize: 22,
+              color: 'var(--text)', marginBottom: 12,
+            }}>
+              支付成功！
+            </div>
+            <div style={{
+              fontSize: 14, color: 'var(--text2)', lineHeight: 1.8, marginBottom: 24,
+            }}>
+              我们正在为您生成登录链接，请查收邮件<br />
+              <span style={{ color: 'var(--accent)', fontWeight: 600 }}>
+                noreply@ask-sophia.com
+              </span><br />
+              点击邮件中的链接即可进入 Dashboard 查看申诉书。<br />
+              <span style={{ color: 'var(--text3)', fontSize: 12 }}>
+                如未收到请检查垃圾邮件箱，通常1分钟内到达。
+              </span>
+            </div>
+            <button
+              onClick={() => setPaymentSuccess(false)}
+              style={{
+                padding: '10px 32px', borderRadius: 8, border: 'none',
+                background: 'var(--accent)', color: '#000',
+                fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              知道了
+            </button>
+          </div>
+        </div>
+      )}
       {/* ===== 问卷 Modal ===== */}
       {showQuestionnaire && (() => {
         const violationCodes = scannedViolations.map((v: any) => v.violation_code)
