@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
 
       // 3. 生成 Magic Link
       console.log('[WEBHOOK] 开始生成 Magic Link, email:', email)
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://nycticketai.vercel.app'
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.ask-sophia.com'
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'magiclink',
         email,
