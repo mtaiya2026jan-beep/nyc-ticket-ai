@@ -283,6 +283,9 @@ const [user, setUser] = useState<any>(null)
       const data = await res.json()
       if (!res.ok || !data.success) { setError(data.error || '分析失败'); return }
       setSingleResult(data.analysis); setHasDbData(data.hasDbData)
+      localStorage.setItem('pendingResults', JSON.stringify([{violation_code: vc, analysis: data.analysis, hasDbData: !!data.analysis?.totalHistoricalCases, line_item: 1, law_violated: ''}]))
+      localStorage.setItem('pendingAgency', ag)
+      localStorage.setItem('pendingSummons', summons)
     } catch { setError('网络错误') }
     finally { setLoading(false); setLoadStep(0) }
   }
