@@ -137,6 +137,7 @@ const [user, setUser] = useState<any>(null)
       if (saved) {
         try {
           const parsed = JSON.parse(saved)
+          console.log('restored multiResults:', parsed?.length)
           setMultiResults(parsed)
           const savedAgency = localStorage.getItem('pendingAgency')
           const savedSummons = localStorage.getItem('pendingSummons')
@@ -146,10 +147,14 @@ const [user, setUser] = useState<any>(null)
           localStorage.removeItem('pendingAgency')
           localStorage.removeItem('pendingSummons')
         } catch(e) { console.log('restore failed', e) }
+      } else {
+        console.log('restored multiResults: pendingResults not found in localStorage')
       }
     } else if (localStorage.getItem('isPaid') === 'true') {
       setIsPaid(true)
       localStorage.removeItem('pendingPlan')
+      const savedResults = localStorage.getItem('pendingResults')
+      if (savedResults) { try { setMultiResults(JSON.parse(savedResults)) } catch(e) {} }
     }
   }, [])
   const [scanning, setScanning] = useState(false)
