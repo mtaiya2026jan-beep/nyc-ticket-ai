@@ -257,7 +257,11 @@ const [user, setUser] = useState<any>(null)
       })
       const data = await res.json()
       if (!res.ok || !data.success) { setError(data.error || '分析失败'); return }
-      setMultiResults(data.multiResults || [])
+      const results = data.multiResults || []
+      setMultiResults(results)
+      localStorage.setItem('pendingResults', JSON.stringify(results))
+      localStorage.setItem('pendingAgency', ag)
+      localStorage.setItem('pendingSummons', summons)
     } catch { setError('网络错误') }
     finally { setLoading(false); setLoadStep(0) }
   }
