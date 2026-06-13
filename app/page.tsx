@@ -126,27 +126,27 @@ const [user, setUser] = useState<any>(null)
   useEffect(() => {
     const url = new URL(window.location.href)
     if (url.searchParams.get('payment') === 'success') {
-      sessionStorage.setItem('isPaid', 'true')
+      localStorage.setItem('isPaid', 'true')
       setIsPaid(true)
       setPaymentSuccess(true)
       // 清除 URL 参数，避免刷新重复显示
       window.history.replaceState({}, '', window.location.pathname)
       // 恢复付款前的分析结果
-      const saved = sessionStorage.getItem('pendingResults')
+      const saved = localStorage.getItem('pendingResults')
       if (saved) {
         try {
           const parsed = JSON.parse(saved)
           setMultiResults(parsed)
-          const savedAgency = sessionStorage.getItem('pendingAgency')
-          const savedSummons = sessionStorage.getItem('pendingSummons')
+          const savedAgency = localStorage.getItem('pendingAgency')
+          const savedSummons = localStorage.getItem('pendingSummons')
           if (savedAgency) setAgency(savedAgency)
           if (savedSummons) setSummons(savedSummons)
-          const savedViolations = sessionStorage.getItem('pendingViolations'); if (savedViolations) { try { setScannedViolations(JSON.parse(savedViolations)); sessionStorage.removeItem('pendingViolations') } catch(e) {} }; sessionStorage.removeItem('pendingResults')
-          sessionStorage.removeItem('pendingAgency')
-          sessionStorage.removeItem('pendingSummons')
+          const savedViolations = localStorage.getItem('pendingViolations'); if (savedViolations) { try { setScannedViolations(JSON.parse(savedViolations)); localStorage.removeItem('pendingViolations') } catch(e) {} }; localStorage.removeItem('pendingResults')
+          localStorage.removeItem('pendingAgency')
+          localStorage.removeItem('pendingSummons')
         } catch(e) { console.log('restore failed', e) }
       }
-    } else if (sessionStorage.getItem('isPaid') === 'true') {
+    } else if (localStorage.getItem('isPaid') === 'true') {
       setIsPaid(true)
     }
   }, [])
@@ -302,12 +302,12 @@ const [user, setUser] = useState<any>(null)
   }
 
   const handleCheckout = async (plan) => {
-    if (!user) { sessionStorage.setItem('pendingPlan', plan); setShowAuth(true); return }
+    if (!user) { localStorage.setItem('pendingPlan', plan); setShowAuth(true); return }
     // 保存当前分析结果，付款后恢复
     if (multiResults.length) {
-      sessionStorage.setItem('pendingResults', JSON.stringify(multiResults)); if (scannedViolations.length) sessionStorage.setItem('pendingViolations', JSON.stringify(scannedViolations))
-      sessionStorage.setItem('pendingAgency', agency)
-      sessionStorage.setItem('pendingSummons', summons)
+      localStorage.setItem('pendingResults', JSON.stringify(multiResults)); if (scannedViolations.length) localStorage.setItem('pendingViolations', JSON.stringify(scannedViolations))
+      localStorage.setItem('pendingAgency', agency)
+      localStorage.setItem('pendingSummons', summons)
     }
     const res = await fetch("/api/checkout", {
       method: "POST",
@@ -556,7 +556,7 @@ const [user, setUser] = useState<any>(null)
 
   return (
     <div style={{display:'flex', height:'100vh', overflow:'hidden'}}>
-      {showAuth && <AuthModal onClose={()=>setShowAuth(false)} onSuccess={(u)=>{setUser(u);loadAppeals(u);const p=sessionStorage.getItem('pendingPlan');if(p){sessionStorage.removeItem('pendingPlan');handleCheckout(p)}}} />}
+      {showAuth && <AuthModal onClose={()=>setShowAuth(false)} onSuccess={(u)=>{setUser(u);loadAppeals(u);const p=localStorage.getItem('pendingPlan');if(p){localStorage.removeItem('pendingPlan');handleCheckout(p)}}} />}
       {/* ===== 支付成功 Modal ===== */}
       {paymentSuccess && (
         <div style={{
