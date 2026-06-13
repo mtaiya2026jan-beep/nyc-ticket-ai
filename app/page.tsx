@@ -127,6 +127,7 @@ const [user, setUser] = useState<any>(null)
     const url = new URL(window.location.href)
     if (url.searchParams.get('payment') === 'success') {
       localStorage.setItem('isPaid', 'true')
+      localStorage.removeItem('pendingPlan')
       setIsPaid(true)
       setPaymentSuccess(true)
       // 清除 URL 参数，避免刷新重复显示
@@ -148,6 +149,7 @@ const [user, setUser] = useState<any>(null)
       }
     } else if (localStorage.getItem('isPaid') === 'true') {
       setIsPaid(true)
+      localStorage.removeItem('pendingPlan')
     }
   }, [])
   const [scanning, setScanning] = useState(false)
@@ -306,7 +308,7 @@ const [user, setUser] = useState<any>(null)
   }
 
   const handleCheckout = async (plan) => {
-    if (!user) { localStorage.setItem('pendingPlan', plan); setShowAuth(true); return }
+    if (!user && !isPaid) { localStorage.setItem('pendingPlan', plan); setShowAuth(true); return }
     // 保存当前分析结果，付款后恢复
     if (multiResults.length) {
       localStorage.setItem('pendingResults', JSON.stringify(multiResults)); if (scannedViolations.length) localStorage.setItem('pendingViolations', JSON.stringify(scannedViolations))
@@ -560,7 +562,7 @@ const [user, setUser] = useState<any>(null)
 
   return (
     <div style={{display:'flex', height:'100vh', overflow:'hidden'}}>
-      {showAuth && <AuthModal onClose={()=>setShowAuth(false)} onSuccess={(u)=>{setUser(u);loadAppeals(u);const p=localStorage.getItem('pendingPlan');if(p){localStorage.removeItem('pendingPlan');handleCheckout(p)}}} />}
+      {showAuth && <AuthModal onClose={()=>setShowAuth(false)} onSuccess={(u)=>{setUser(u);loadAppeals(u);localStorage.removeItem('pendingPlan');const p=localStorage.getItem('pendingPlan');if(p){handleCheckout(p)}}} />}
       {/* ===== 支付成功 Modal ===== */}
       {paymentSuccess && (
         <div style={{
