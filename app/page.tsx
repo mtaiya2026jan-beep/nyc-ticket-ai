@@ -589,9 +589,6 @@ const [user, setUser] = useState<any>(null)
               onClick={() => {
                 setPaymentSuccess(false)
                 setTab('analyze')
-                if (multiResults.length > 0) {
-                  submitAppealWithQuestionnaire()
-                }
               }}
               style={{
                 padding: '10px 32px', borderRadius: 8, border: 'none',
