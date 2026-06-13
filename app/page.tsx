@@ -487,6 +487,58 @@ const [user, setUser] = useState<any>(null)
           </div>
         </div>
       </div>
+      {agency === 'DOHMH' && (() => {
+        const g = quickAnswers.currentGrade
+        const sev = r.severity
+        if (!g || g === '未知') return null
+
+        type GradeInfo = { grade: string; label: string; color: string; bg: string; border: string }
+        const gradeInfo = (grade: string): GradeInfo => {
+          if (grade === 'A') return { grade: 'A', label: 'A 级', color: 'var(--green)', bg: 'rgba(71,255,154,0.08)', border: 'rgba(71,255,154,0.25)' }
+          if (grade === 'B') return { grade: 'B', label: 'B 级', color: 'var(--amber)', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.25)' }
+          return { grade: 'C', label: 'C 级', color: 'var(--red)', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.25)' }
+        }
+
+        // 申诉成功后预测
+        const appealGrade = g === 'C' ? gradeInfo('B') : g === 'B' ? gradeInfo('A') : gradeInfo('A')
+        const appealNote = g === 'C' ? '违规撤销后累计扣分减少，评级有望从C升至B'
+          : g === 'B' ? '若关键违规撤销，扣分归零或降至13分以下，可升回A级'
+          : '维持A级，无新增扣分记录'
+
+        // 不申诉维持现状预测
+        const noAppealGrade = g === 'A' && sev === 'Critical' ? gradeInfo('B')
+          : g === 'A' && sev === 'Major' ? gradeInfo('B')
+          : g === 'A' ? gradeInfo('A')
+          : g === 'B' && sev === 'Critical' ? gradeInfo('C')
+          : g === 'B' ? gradeInfo('B')
+          : gradeInfo('C')
+        const noAppealNote = g === 'A' && (sev === 'Critical' || sev === 'Major')
+          ? `${sev} 级违规维持，累计扣分超过13分，A级不保`
+          : g === 'A' ? '扣分较轻，A级暂时可维持，但记录在案'
+          : g === 'B' && sev === 'Critical' ? 'Critical 违规维持后扣分累加，极可能跌至C级'
+          : g === 'B' ? '扣分持续累积，B级存在压力'
+          : '已是C级，违规记录叠加，下次检查风险更高'
+
+        return (
+          <div style={{margin:'14px 0', padding:14, background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:10}}>
+            <div style={{fontSize:11, fontWeight:600, color:'var(--text)', marginBottom:12}}>
+              🏅 评级影响预测 <span style={{fontSize:10, color:'var(--text3)', fontWeight:400}}>（基于当前 {g} 级）</span>
+            </div>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+              <div style={{background: appealGrade.bg, border:`1px solid ${appealGrade.border}`, borderRadius:8, padding:'12px 14px'}}>
+                <div style={{fontSize:10, color:'var(--text3)', marginBottom:6}}>✅ 申诉成功后</div>
+                <div style={{fontFamily:'Syne', fontWeight:800, fontSize:28, color: appealGrade.color, lineHeight:1}}>{appealGrade.label}</div>
+                <div style={{fontSize:10, color:'var(--text2)', marginTop:8, lineHeight:1.5}}>{appealNote}</div>
+              </div>
+              <div style={{background: noAppealGrade.bg, border:`1px solid ${noAppealGrade.border}`, borderRadius:8, padding:'12px 14px'}}>
+                <div style={{fontSize:10, color:'var(--text3)', marginBottom:6}}>❌ 不申诉维持现状</div>
+                <div style={{fontFamily:'Syne', fontWeight:800, fontSize:28, color: noAppealGrade.color, lineHeight:1}}>{noAppealGrade.label}</div>
+                <div style={{fontSize:10, color:'var(--text2)', marginTop:8, lineHeight:1.5}}>{noAppealNote}</div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 <div style={{display:"flex",gap:8,paddingTop:12,borderTop:"1px solid var(--border)"}}><button onClick={()=>handleCheckout("single")} style={{flex:1,padding:"9px",borderRadius:8,border:"none",background:"var(--accent)",color:"#000",fontFamily:"Inter",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6,fontWeight:700}}><i className="ti ti-credit-card" aria-hidden /> $49 立即解锁申诉书</button><button onClick={()=>handleCheckout("solo_annual")} style={{flex:1,padding:"9px",borderRadius:8,border:"1px solid rgba(232,255,71,0.25)",background:"rgba(232,255,71,0.08)",color:"var(--accent)",fontFamily:"Inter",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><i className="ti ti-star" aria-hidden /> 专业版 $299/年</button></div>
       <div style={{display:'flex', gap:8, paddingTop:12, borderTop:'1px solid var(--border)'}}><button onClick={isPaid ? runFullAppeal : () => alert('请先完成支付后再生成申诉书')} disabled={!isPaid} style={{flex:2, padding:'9px', borderRadius:8, border:'1px solid rgba(232,255,71,0.25)', background:'rgba(232,255,71,0.08)', color:'var(--accent)', fontFamily:'Inter', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6}}><i className="ti ti-file-text" aria-hidden />生成完整申诉书（所有违规项）</button>
         {[{icon:'file-text',label:'申诉材料',primary:true,mode:'appeal'},{icon:'list',label:'证据清单',mode:'evidence'},{icon:'calendar',label:'整改计划',mode:'plan'}].map(btn=>(
