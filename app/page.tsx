@@ -580,24 +580,26 @@ const [user, setUser] = useState<any>(null)
             <div style={{
               fontSize: 14, color: 'var(--text2)', lineHeight: 1.8, marginBottom: 24,
             }}>
-              我们正在为您生成登录链接，请查收邮件<br />
-              <span style={{ color: 'var(--accent)', fontWeight: 600 }}>
-                noreply@ask-sophia.com
-              </span><br />
-              点击邮件中的链接即可进入 Dashboard 查看申诉书。<br />
+              您的申诉材料已就绪，点击下方按钮立即生成申诉书。<br />
               <span style={{ color: 'var(--text3)', fontSize: 12 }}>
-                如未收到请检查垃圾邮件箱，通常1分钟内到达。
+                生成后可直接下载 Word / PDF 或复制全文。
               </span>
             </div>
             <button
-              onClick={() => setPaymentSuccess(false)}
+              onClick={() => {
+                setPaymentSuccess(false)
+                setTab('analyze')
+                if (multiResults.length > 0) {
+                  submitAppealWithQuestionnaire()
+                }
+              }}
               style={{
                 padding: '10px 32px', borderRadius: 8, border: 'none',
                 background: 'var(--accent)', color: '#000',
                 fontSize: 14, fontWeight: 600, cursor: 'pointer',
               }}
             >
-              知道了
+              立即生成申诉书
             </button>
           </div>
         </div>
