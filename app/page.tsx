@@ -329,6 +329,7 @@ const [user, setUser] = useState<any>(null)
   }
 
   const runFullAppeal = async () => {
+    console.log('runFullAppeal called', multiResults.length, isPaid)
     if (!multiResults.length) return
     // 先弹问卷
     setShowQuestionnaire(true)
