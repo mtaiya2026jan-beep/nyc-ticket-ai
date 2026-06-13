@@ -1128,7 +1128,7 @@ const parseFineRange = (s: string) => {
         {tab==='dashboard' && (
           <div style={{flex:1, overflowY:'auto', padding:24}}>
             <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12}}>
-              {[{label:'历史案例总量',value:'220万+',change:'已全量导入'},{label:'统计节省总额',value:'$482K',change:'+31%',color:'var(--green)'},{label:'撤销成功率',value:'67%',change:'+4%',color:'var(--accent)'},{label:'支持违规代码',value:'200+',change:'持续更新'}].map(s=>(
+              {[{label:'历史案例总量',value:'8.2M+',change:'已全量导入'},{label:'统计节省总额',value:'$782K',change:'+31%',color:'var(--green)'},{label:'撤销成功率',value:'67%',change:'+4%',color:'var(--accent)'},{label:'支持违规代码',value:'200+',change:'持续更新'}].map(s=>(
                 <div key={s.label} style={{background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:8, padding:14}}>
                   <div style={{fontSize:10, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8}}>{s.label}</div>
                   <div style={{fontFamily:'Syne', fontWeight:700, fontSize:24, color:s.color||'var(--text)'}}>{s.value}</div>
